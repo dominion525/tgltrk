@@ -89,7 +89,7 @@ pub struct TogglClient {
 }
 
 impl TogglClient {
-    pub fn new(api_token: &str) -> Result<Self> {
+    fn build(api_token: &str, base_url: String) -> Result<Self> {
         let auth = format!("{api_token}:api_token");
         let encoded = general_purpose::STANDARD.encode(auth);
         let header_value = header::HeaderValue::from_str(&format!("Basic {encoded}"))
@@ -107,10 +107,15 @@ impl TogglClient {
             .build()
             .map_err(|e| AppError::Api(format!("Failed to build HTTP client: {e}")))?;
 
-        Ok(Self {
-            http,
-            base_url: API_BASE_URL.to_string(),
-        })
+        Ok(Self { http, base_url })
+    }
+
+    pub fn new(api_token: &str) -> Result<Self> {
+        Self::build(api_token, API_BASE_URL.to_string())
+    }
+
+    pub fn new_with_base_url(api_token: &str, base_url: &str) -> Result<Self> {
+        Self::build(api_token, base_url.to_string())
     }
 
     async fn get<T: DeserializeOwned>(&self, url: &str) -> Result<T> {
@@ -355,6 +360,57 @@ impl ApiClient for TogglClient {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use wiremock::matchers::{method, path, query_param};
+    use wiremock::{Mock, MockServer, ResponseTemplate};
+
+    async fn setup() -> (MockServer, TogglClient) {
+        let server = MockServer::start().await;
+        let client = TogglClient::new_with_base_url("test_token", &server.uri()).unwrap();
+        (server, client)
+    }
+
+    fn wire_user_json() -> serde_json::Value {
+        serde_json::json!({
+            "email": "test@example.com",
+            "fullname": "Test User",
+            "default_workspace_id": 1,
+            "timezone": "UTC"
+        })
+    }
+
+    fn wire_time_entry_json(id: i64, workspace_id: i64) -> serde_json::Value {
+        serde_json::json!({
+            "id": id,
+            "workspace_id": workspace_id,
+            "description": "Test entry",
+            "start": "2024-01-01T00:00:00Z",
+            "stop": "2024-01-01T01:00:00Z",
+            "duration": 3600,
+            "project_id": null,
+            "task_id": null,
+            "tags": [],
+            "billable": false
+        })
+    }
+
+    fn wire_project_json(id: i64, workspace_id: i64) -> serde_json::Value {
+        serde_json::json!({
+            "id": id,
+            "workspace_id": workspace_id,
+            "name": "Test Project",
+            "active": true,
+            "color": "#06aaf5",
+            "billable": null
+        })
+    }
+
+    fn wire_tag_json(id: i64, workspace_id: i64) -> serde_json::Value {
+        serde_json::json!({
+            "id": id,
+            "workspace_id": workspace_id,
+            "name": "Test Tag"
+        })
+    }
 
     #[test]
     fn new_with_valid_token_succeeds() {
@@ -364,5 +420,413 @@ mod tests {
     #[test]
     fn new_with_empty_token_succeeds() {
         assert!(TogglClient::new("").is_ok());
+    }
+
+    // --- get_me ---
+
+    #[tokio::test]
+    async fn get_me_returns_user() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_user_json()))
+            .mount(&server)
+            .await;
+
+        let user = client.get_me().await.unwrap();
+        assert_eq!(user.email, "test@example.com");
+        assert_eq!(user.fullname, "Test User");
+        assert_eq!(user.default_workspace_id, 1);
+    }
+
+    // --- get_current_timer ---
+
+    #[tokio::test]
+    async fn get_current_timer_running() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me/time_entries/current"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_time_entry_json(42, 1)))
+            .mount(&server)
+            .await;
+
+        let result = client.get_current_timer().await.unwrap();
+        assert!(result.is_some());
+        assert_eq!(result.unwrap().id, 42);
+    }
+
+    #[tokio::test]
+    async fn get_current_timer_null() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me/time_entries/current"))
+            .respond_with(ResponseTemplate::new(200).set_body_string("null"))
+            .mount(&server)
+            .await;
+
+        let result = client.get_current_timer().await.unwrap();
+        assert!(result.is_none());
+    }
+
+    #[tokio::test]
+    async fn get_current_timer_empty() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me/time_entries/current"))
+            .respond_with(ResponseTemplate::new(200).set_body_string(""))
+            .mount(&server)
+            .await;
+
+        let result = client.get_current_timer().await.unwrap();
+        assert!(result.is_none());
+    }
+
+    // --- get_time_entries ---
+
+    #[tokio::test]
+    async fn get_time_entries_no_params() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me/time_entries"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!([wire_time_entry_json(1, 1)])),
+            )
+            .mount(&server)
+            .await;
+
+        let entries = client.get_time_entries(None, None).await.unwrap();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0].id, 1);
+    }
+
+    #[tokio::test]
+    async fn get_time_entries_with_since_until() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me/time_entries"))
+            .and(query_param("start_date", "2024-01-01"))
+            .and(query_param("end_date", "2024-01-31"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!([wire_time_entry_json(1, 1)])),
+            )
+            .mount(&server)
+            .await;
+
+        let entries = client
+            .get_time_entries(
+                Some("2024-01-01".to_string()),
+                Some("2024-01-31".to_string()),
+            )
+            .await
+            .unwrap();
+        assert_eq!(entries.len(), 1);
+    }
+
+    // --- get_time_entry ---
+
+    #[tokio::test]
+    async fn get_time_entry_by_id() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me/time_entries/42"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_time_entry_json(42, 1)))
+            .mount(&server)
+            .await;
+
+        let entry = client.get_time_entry(42).await.unwrap();
+        assert_eq!(entry.id, 42);
+    }
+
+    // --- create_time_entry ---
+
+    #[tokio::test]
+    async fn create_time_entry_sends_post() {
+        let (server, client) = setup().await;
+        Mock::given(method("POST"))
+            .and(path("/workspaces/1/time_entries"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_time_entry_json(100, 1)))
+            .mount(&server)
+            .await;
+
+        let params = CreateTimeEntryParams {
+            description: Some("Test".to_string()),
+            project_id: None,
+            task_id: None,
+            tags: vec![],
+            billable: false,
+        };
+        let entry = client.create_time_entry(1, &params).await.unwrap();
+        assert_eq!(entry.id, 100);
+    }
+
+    // --- update_time_entry ---
+
+    #[tokio::test]
+    async fn update_time_entry_sends_put() {
+        let (server, client) = setup().await;
+        Mock::given(method("PUT"))
+            .and(path("/workspaces/1/time_entries/42"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_time_entry_json(42, 1)))
+            .mount(&server)
+            .await;
+
+        let params = UpdateTimeEntryParams {
+            description: Some("Updated".to_string()),
+            project_id: None,
+            tags: None,
+            billable: None,
+        };
+        let entry = client.update_time_entry(1, 42, &params).await.unwrap();
+        assert_eq!(entry.id, 42);
+    }
+
+    // --- delete_time_entry ---
+
+    #[tokio::test]
+    async fn delete_time_entry_sends_delete() {
+        let (server, client) = setup().await;
+        Mock::given(method("DELETE"))
+            .and(path("/workspaces/1/time_entries/42"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+
+        let result = client.delete_time_entry(1, 42).await;
+        assert!(result.is_ok());
+    }
+
+    // --- stop_time_entry ---
+
+    #[tokio::test]
+    async fn stop_time_entry_sends_patch() {
+        let (server, client) = setup().await;
+        Mock::given(method("PATCH"))
+            .and(path("/workspaces/1/time_entries/42/stop"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_time_entry_json(42, 1)))
+            .mount(&server)
+            .await;
+
+        let entry = client.stop_time_entry(1, 42).await.unwrap();
+        assert_eq!(entry.id, 42);
+    }
+
+    // --- projects ---
+
+    #[tokio::test]
+    async fn list_projects_returns_vec() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/workspaces/1/projects"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_json(serde_json::json!([wire_project_json(10, 1)])),
+            )
+            .mount(&server)
+            .await;
+
+        let projects = client.list_projects(1).await.unwrap();
+        assert_eq!(projects.len(), 1);
+        assert_eq!(projects[0].id, 10);
+    }
+
+    #[tokio::test]
+    async fn get_project_by_id() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/workspaces/1/projects/10"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_project_json(10, 1)))
+            .mount(&server)
+            .await;
+
+        let project = client.get_project(1, 10).await.unwrap();
+        assert_eq!(project.id, 10);
+    }
+
+    #[tokio::test]
+    async fn create_project_sends_post() {
+        let (server, client) = setup().await;
+        Mock::given(method("POST"))
+            .and(path("/workspaces/1/projects"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_project_json(11, 1)))
+            .mount(&server)
+            .await;
+
+        let params = CreateProjectParams {
+            name: "New Project".to_string(),
+        };
+        let project = client.create_project(1, &params).await.unwrap();
+        assert_eq!(project.id, 11);
+    }
+
+    #[tokio::test]
+    async fn update_project_sends_put() {
+        let (server, client) = setup().await;
+        Mock::given(method("PUT"))
+            .and(path("/workspaces/1/projects/10"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_project_json(10, 1)))
+            .mount(&server)
+            .await;
+
+        let params = UpdateProjectParams {
+            name: Some("Renamed".to_string()),
+        };
+        let project = client.update_project(1, 10, &params).await.unwrap();
+        assert_eq!(project.id, 10);
+    }
+
+    #[tokio::test]
+    async fn delete_project_sends_delete() {
+        let (server, client) = setup().await;
+        Mock::given(method("DELETE"))
+            .and(path("/workspaces/1/projects/10"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+
+        let result = client.delete_project(1, 10).await;
+        assert!(result.is_ok());
+    }
+
+    // --- tags ---
+
+    #[tokio::test]
+    async fn list_tags_returns_vec() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/workspaces/1/tags"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!([wire_tag_json(5, 1)])),
+            )
+            .mount(&server)
+            .await;
+
+        let tags = client.list_tags(1).await.unwrap();
+        assert_eq!(tags.len(), 1);
+        assert_eq!(tags[0].id, 5);
+    }
+
+    #[tokio::test]
+    async fn create_tag_sends_post() {
+        let (server, client) = setup().await;
+        Mock::given(method("POST"))
+            .and(path("/workspaces/1/tags"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_tag_json(6, 1)))
+            .mount(&server)
+            .await;
+
+        let tag = client.create_tag(1, "New Tag").await.unwrap();
+        assert_eq!(tag.id, 6);
+    }
+
+    #[tokio::test]
+    async fn update_tag_sends_put() {
+        let (server, client) = setup().await;
+        Mock::given(method("PUT"))
+            .and(path("/workspaces/1/tags/5"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(wire_tag_json(5, 1)))
+            .mount(&server)
+            .await;
+
+        let tag = client.update_tag(1, 5, "Renamed").await.unwrap();
+        assert_eq!(tag.id, 5);
+    }
+
+    #[tokio::test]
+    async fn delete_tag_sends_delete() {
+        let (server, client) = setup().await;
+        Mock::given(method("DELETE"))
+            .and(path("/workspaces/1/tags/5"))
+            .respond_with(ResponseTemplate::new(200))
+            .mount(&server)
+            .await;
+
+        let result = client.delete_tag(1, 5).await;
+        assert!(result.is_ok());
+    }
+
+    // --- error cases ---
+
+    #[tokio::test]
+    async fn send_http_401_returns_error() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me"))
+            .respond_with(ResponseTemplate::new(401).set_body_string("Unauthorized"))
+            .mount(&server)
+            .await;
+
+        let result = client.get_me().await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AppError::HttpStatus { status, body } => {
+                assert_eq!(status, 401);
+                assert_eq!(body, "Unauthorized");
+            }
+            other => panic!("expected HttpStatus, got: {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn send_http_500_returns_error() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me"))
+            .respond_with(ResponseTemplate::new(500).set_body_string("Internal Server Error"))
+            .mount(&server)
+            .await;
+
+        let result = client.get_me().await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AppError::HttpStatus { status, .. } => assert_eq!(status, 500),
+            other => panic!("expected HttpStatus, got: {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn get_current_timer_http_error() {
+        let (server, client) = setup().await;
+        Mock::given(method("GET"))
+            .and(path("/me/time_entries/current"))
+            .respond_with(ResponseTemplate::new(403).set_body_string("Forbidden"))
+            .mount(&server)
+            .await;
+
+        let result = client.get_current_timer().await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AppError::HttpStatus { status, .. } => assert_eq!(status, 403),
+            other => panic!("expected HttpStatus, got: {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_request_http_error() {
+        let (server, client) = setup().await;
+        Mock::given(method("DELETE"))
+            .and(path("/workspaces/1/tags/1"))
+            .respond_with(ResponseTemplate::new(404).set_body_string("Not Found"))
+            .mount(&server)
+            .await;
+
+        let result = client.delete_tag(1, 1).await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AppError::HttpStatus { status, .. } => assert_eq!(status, 404),
+            other => panic!("expected HttpStatus, got: {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn connection_refused_returns_api_error() {
+        let client = TogglClient::new_with_base_url("test_token", "http://127.0.0.1:1").unwrap();
+        let result = client.get_me().await;
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            AppError::Api(_) => {}
+            other => panic!("expected Api error, got: {other:?}"),
+        }
     }
 }

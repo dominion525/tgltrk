@@ -8,9 +8,21 @@ use crate::error::Result;
 use crate::output;
 
 pub async fn execute(action: EntriesAction, json: bool, workspace: Option<i64>) -> Result<()> {
+    execute_with_base_url(action, json, workspace, None).await
+}
+
+pub async fn execute_with_base_url(
+    action: EntriesAction,
+    json: bool,
+    workspace: Option<i64>,
+    base_url: Option<&str>,
+) -> Result<()> {
     let store = credentials::get_store();
     let cred = store.read()?;
-    let client = TogglClient::new(&cred.api_token)?;
+    let client = match base_url {
+        Some(url) => TogglClient::new_with_base_url(&cred.api_token, url)?,
+        None => TogglClient::new(&cred.api_token)?,
+    };
     run(action, json, workspace, &client).await
 }
 
@@ -319,6 +331,45 @@ mod tests {
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_running_entry(6)));
         let result = run(EntriesAction::Continue { id: 5 }, true, Some(1), &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn execute_list_with_wiremock() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let _guard = crate::ENV_MUTEX.lock().await;
+        let server = MockServer::start().await;
+        // SAFETY: env var access serialized by ENV_MUTEX
+        unsafe { std::env::set_var("TOGGL_API_TOKEN", "test_token") };
+
+        Mock::given(method("GET"))
+            .and(path("/me/time_entries"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!([{
+                    "id": 1, "workspace_id": 1, "description": "Test",
+                    "start": "2024-01-01T00:00:00Z", "stop": "2024-01-01T01:00:00Z",
+                    "duration": 3600, "project_id": null, "task_id": null,
+                    "tags": [], "billable": false
+                }])),
+            )
+            .mount(&server)
+            .await;
+
+        let result = execute_with_base_url(
+            EntriesAction::List {
+                since: None,
+                until: None,
+                count: None,
+            },
+            false,
+            Some(1),
+            Some(&server.uri()),
+        )
+        .await;
+        // SAFETY: test is single-threaded for env var access
+        unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
         assert!(result.is_ok());
     }
 }

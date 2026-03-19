@@ -8,9 +8,21 @@ use crate::error::{AppError, Result};
 use crate::output;
 
 pub async fn execute(action: TimerAction, json: bool, workspace: Option<i64>) -> Result<()> {
+    execute_with_base_url(action, json, workspace, None).await
+}
+
+pub async fn execute_with_base_url(
+    action: TimerAction,
+    json: bool,
+    workspace: Option<i64>,
+    base_url: Option<&str>,
+) -> Result<()> {
     let store = credentials::get_store();
     let cred = store.read()?;
-    let client = TogglClient::new(&cred.api_token)?;
+    let client = match base_url {
+        Some(url) => TogglClient::new_with_base_url(&cred.api_token, url)?,
+        None => TogglClient::new(&cred.api_token)?,
+    };
     run(action, json, workspace, &client).await
 }
 
@@ -238,6 +250,56 @@ mod tests {
         mock.expect_stop_time_entry()
             .returning(|_, _| Ok(make_entry(10, false)));
         let result = run(TimerAction::Stop, true, None, &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn execute_start_with_wiremock() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let _guard = crate::ENV_MUTEX.lock().await;
+        let server = MockServer::start().await;
+        // SAFETY: env var access serialized by ENV_MUTEX
+        unsafe { std::env::set_var("TOGGL_API_TOKEN", "test_token") };
+
+        // Mock for get_me (workspace resolution)
+        Mock::given(method("GET"))
+            .and(path("/me"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "email": "t@t.com", "fullname": "T",
+                "default_workspace_id": 1, "timezone": "UTC"
+            })))
+            .mount(&server)
+            .await;
+
+        // Mock for create_time_entry
+        Mock::given(method("POST"))
+            .and(path("/workspaces/1/time_entries"))
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "id": 100, "workspace_id": 1, "description": "Test",
+                "start": "2024-01-01T00:00:00Z", "stop": null,
+                "duration": -1, "project_id": null, "task_id": null,
+                "tags": [], "billable": false
+            })))
+            .mount(&server)
+            .await;
+
+        let result = execute_with_base_url(
+            TimerAction::Start {
+                description: Some("Test".to_string()),
+                project: None,
+                task: None,
+                tags: None,
+                billable: false,
+            },
+            false,
+            None,
+            Some(&server.uri()),
+        )
+        .await;
+        // SAFETY: test is single-threaded for env var access
+        unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
         assert!(result.is_ok());
     }
 }

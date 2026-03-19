@@ -12,13 +12,11 @@ use clap::Parser;
 use cli::{CacheAction, Cli, Command};
 use colored::Colorize;
 
-#[tokio::main]
-async fn main() {
-    let cli = Cli::parse();
+pub async fn run_cli(cli: Cli) -> error::Result<()> {
     let json = cli.json;
     let workspace = cli.workspace;
 
-    let result = match cli.command {
+    match cli.command {
         Command::Auth { action } => commands::auth::execute(action).await,
         Command::Me => commands::me::execute(json, workspace).await,
         Command::Timer { action } => commands::timer::execute(action, json, workspace).await,
@@ -29,10 +27,50 @@ async fn main() {
             CacheAction::Clear => commands::cache_cmd::clear().await,
             CacheAction::Status => commands::cache_cmd::status().await,
         },
-    };
+    }
+}
 
-    if let Err(e) = result {
+#[tokio::main]
+async fn main() {
+    let cli = Cli::parse();
+    if let Err(e) = run_cli(cli).await {
         eprintln!("{} {e}", "Error:".red().bold());
         std::process::exit(1);
+    }
+}
+
+/// Mutex to serialize tests that modify environment variables (e.g. TOGGL_API_TOKEN).
+/// Without this, parallel test threads race on set_var/remove_var.
+#[cfg(test)]
+pub(crate) static ENV_MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn run_cli_cache_status_succeeds() {
+        let cli = Cli {
+            command: Command::Cache {
+                action: CacheAction::Status,
+            },
+            json: false,
+            workspace: None,
+        };
+        let result = run_cli(cli).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn run_cli_cache_clear_succeeds() {
+        let cli = Cli {
+            command: Command::Cache {
+                action: CacheAction::Clear,
+            },
+            json: false,
+            workspace: None,
+        };
+        let result = run_cli(cli).await;
+        assert!(result.is_ok());
     }
 }

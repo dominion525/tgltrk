@@ -8,9 +8,21 @@ use crate::error::Result;
 use crate::output;
 
 pub async fn execute(action: TagsAction, json: bool, workspace: Option<i64>) -> Result<()> {
+    execute_with_base_url(action, json, workspace, None).await
+}
+
+pub async fn execute_with_base_url(
+    action: TagsAction,
+    json: bool,
+    workspace: Option<i64>,
+    base_url: Option<&str>,
+) -> Result<()> {
     let store = credentials::get_store();
     let cred = store.read()?;
-    let client = TogglClient::new(&cred.api_token)?;
+    let client = match base_url {
+        Some(url) => TogglClient::new_with_base_url(&cred.api_token, url)?,
+        None => TogglClient::new(&cred.api_token)?,
+    };
     run(action, json, workspace, &client).await
 }
 
@@ -190,6 +202,33 @@ mod tests {
         mock.expect_list_tags()
             .returning(|_| Ok(vec![make_tag(1, "urgent"), make_tag(2, "billing")]));
         let result = run(TagsAction::List, true, Some(1), &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn execute_list_with_wiremock() {
+        use wiremock::matchers::{method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
+
+        let _guard = crate::ENV_MUTEX.lock().await;
+        let server = MockServer::start().await;
+        // SAFETY: env var access serialized by ENV_MUTEX
+        unsafe { std::env::set_var("TOGGL_API_TOKEN", "test_token") };
+
+        Mock::given(method("GET"))
+            .and(path("/workspaces/1/tags"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!([{
+                    "id": 1, "workspace_id": 1, "name": "urgent"
+                }])),
+            )
+            .mount(&server)
+            .await;
+
+        let result =
+            execute_with_base_url(TagsAction::List, false, Some(1), Some(&server.uri())).await;
+        // SAFETY: test is single-threaded for env var access
+        unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
         assert!(result.is_ok());
     }
 }

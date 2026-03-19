@@ -503,4 +503,53 @@ mod tests {
         assert!(msg.contains("projects"), "got: {msg}");
         assert!(msg.contains("1024"), "got: {msg}");
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn try_get_io_error_returns_err() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = TempDir::new().unwrap();
+        let cache = make_cache(&tmp);
+        cache.set("locked", &"data").unwrap();
+
+        let path = tmp.path().join("locked.json");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o000)).unwrap();
+
+        let result: Result<Option<String>, CacheError> = cache.try_get("locked");
+        // Restore permissions for cleanup
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).unwrap();
+        assert!(result.is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn set_fails_on_readonly_dir() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = TempDir::new().unwrap();
+        let cache_dir = tmp.path().join("readonly");
+        std::fs::create_dir_all(&cache_dir).unwrap();
+        std::fs::set_permissions(&cache_dir, std::fs::Permissions::from_mode(0o555)).unwrap();
+
+        let cache = FileCache::new(cache_dir.clone(), TimeDelta::hours(72));
+        let result = cache.set("test", &"data");
+        // Restore permissions for cleanup
+        std::fs::set_permissions(&cache_dir, std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(result.is_err());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn invalidate_io_error() {
+        use std::os::unix::fs::PermissionsExt;
+        let tmp = TempDir::new().unwrap();
+        let cache = make_cache(&tmp);
+        cache.set("to_delete", &42).unwrap();
+
+        // Make directory read-only to prevent file deletion
+        std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o555)).unwrap();
+        let result = cache.invalidate("to_delete");
+        // Restore permissions for cleanup
+        std::fs::set_permissions(tmp.path(), std::fs::Permissions::from_mode(0o755)).unwrap();
+        assert!(result.is_err());
+    }
 }

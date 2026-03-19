@@ -111,4 +111,16 @@ mod tests {
         let result = store.clear();
         assert!(result.is_err());
     }
+
+    #[tokio::test]
+    async fn get_store_with_env_var_returns_env_store() {
+        let _guard = crate::ENV_MUTEX.lock().await;
+        // SAFETY: env var access serialized by ENV_MUTEX
+        unsafe { std::env::set_var("TOGGL_API_TOKEN", "my_test_token") };
+        let store = get_store();
+        let cred = store.read().unwrap();
+        assert_eq!(cred.api_token, "my_test_token");
+        // SAFETY: env var access serialized by ENV_MUTEX
+        unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
+    }
 }
