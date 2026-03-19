@@ -1,11 +1,10 @@
-use chrono::TimeDelta;
 use colored::Colorize;
 
 use crate::cache::FileCache;
-use crate::error::Result;
+use crate::error::{AppError, Result};
 
-fn get_cache() -> Result<FileCache> {
-    Ok(FileCache::default_with_ttl(TimeDelta::hours(72))?)
+fn require_cache() -> Result<crate::cache::FileCache> {
+    super::get_cache().ok_or_else(|| AppError::Cache("Failed to initialize cache".to_string()))
 }
 
 fn clear_inner(cache: &FileCache) -> Result<()> {
@@ -29,18 +28,20 @@ fn status_inner(cache: &FileCache) -> Result<()> {
 }
 
 pub async fn clear() -> Result<()> {
-    let cache = get_cache()?;
+    let cache = require_cache()?;
     clear_inner(&cache)
 }
 
 pub async fn status() -> Result<()> {
-    let cache = get_cache()?;
+    let cache = require_cache()?;
     status_inner(&cache)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cache::FileCache;
+    use chrono::TimeDelta;
     use tempfile::TempDir;
 
     fn make_cache(tmp: &TempDir) -> FileCache {

@@ -1,6 +1,5 @@
-use crate::api::client::{ApiClient, TogglClient};
-use crate::commands::{cached_fetch, CacheHits};
-use crate::credentials;
+use crate::api::client::ApiClient;
+use crate::commands::{build_client, cached_fetch, CacheHits};
 use crate::error::Result;
 use crate::output;
 
@@ -13,12 +12,7 @@ pub async fn execute_with_base_url(
     _workspace: Option<i64>,
     base_url: Option<&str>,
 ) -> Result<()> {
-    let store = credentials::get_store()?;
-    let cred = store.read()?;
-    let client = match base_url {
-        Some(url) => TogglClient::new_with_base_url(&cred.api_token, url)?,
-        None => TogglClient::new(&cred.api_token)?,
-    };
+    let client = build_client(base_url)?;
     run(json, &client).await
 }
 

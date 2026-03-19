@@ -149,8 +149,10 @@ impl TogglClient {
         self.send(self.http.patch(url).json(body)).await
     }
 
-    async fn send<T: DeserializeOwned>(&self, request: RequestBuilder) -> Result<T> {
-        let response = request.send().await?;
+    async fn check_response(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<reqwest::Response> {
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();
@@ -159,20 +161,18 @@ impl TogglClient {
                 body,
             });
         }
+        Ok(response)
+    }
+
+    async fn send<T: DeserializeOwned>(&self, request: RequestBuilder) -> Result<T> {
+        let response = self.check_response(request.send().await?).await?;
         let parsed = response.json::<T>().await?;
         Ok(parsed)
     }
 
     async fn delete_request(&self, url: &str) -> Result<()> {
-        let response = self.http.delete(url).send().await?;
-        let status = response.status();
-        if !status.is_success() {
-            let body = response.text().await.unwrap_or_default();
-            return Err(AppError::HttpStatus {
-                status: status.as_u16(),
-                body,
-            });
-        }
+        self.check_response(self.http.delete(url).send().await?)
+            .await?;
         Ok(())
     }
 }
@@ -208,18 +208,16 @@ impl ApiClient for TogglClient {
         since: Option<String>,
         until: Option<String>,
     ) -> Result<Vec<TimeEntry>> {
-        let mut url = format!("{}/me/time_entries", self.base_url);
-        let mut params = Vec::new();
+        let url = format!("{}/me/time_entries", self.base_url);
+        let mut request = self.http.get(&url);
         if let Some(s) = &since {
-            params.push(format!("start_date={s}"));
+            request = request.query(&[("start_date", s)]);
         }
         if let Some(u) = &until {
-            params.push(format!("end_date={u}"));
+            request = request.query(&[("end_date", u)]);
         }
-        if !params.is_empty() {
-            url = format!("{url}?{}", params.join("&"));
-        }
-        let wire: Vec<WireTimeEntry> = self.get(&url).await?;
+        let response = self.check_response(request.send().await?).await?;
+        let wire: Vec<WireTimeEntry> = response.json().await?;
         Ok(wire.into_iter().map(Into::into).collect())
     }
 

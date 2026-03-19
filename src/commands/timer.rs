@@ -1,9 +1,8 @@
 use colored::Colorize;
 
-use crate::api::client::{ApiClient, CreateTimeEntryParams, TogglClient};
+use crate::api::client::{ApiClient, CreateTimeEntryParams};
 use crate::cli::TimerAction;
-use crate::commands::{resolve_workspace_id, CacheHits};
-use crate::credentials;
+use crate::commands::{build_client, resolve_workspace_id, CacheHits};
 use crate::error::{AppError, Result};
 use crate::output;
 
@@ -17,12 +16,7 @@ pub async fn execute_with_base_url(
     workspace: Option<i64>,
     base_url: Option<&str>,
 ) -> Result<()> {
-    let store = credentials::get_store()?;
-    let cred = store.read()?;
-    let client = match base_url {
-        Some(url) => TogglClient::new_with_base_url(&cred.api_token, url)?,
-        None => TogglClient::new(&cred.api_token)?,
-    };
+    let client = build_client(base_url)?;
     run(action, json, workspace, &client).await
 }
 

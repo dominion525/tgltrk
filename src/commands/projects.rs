@@ -1,7 +1,6 @@
-use crate::api::client::{ApiClient, CreateProjectParams, TogglClient, UpdateProjectParams};
+use crate::api::client::{ApiClient, CreateProjectParams, UpdateProjectParams};
 use crate::cli::ProjectsAction;
-use crate::commands::{cached_fetch, invalidate_cache, resolve_workspace_id, CacheHits};
-use crate::credentials;
+use crate::commands::{build_client, cached_fetch, invalidate_cache, resolve_workspace_id, CacheHits};
 use crate::error::Result;
 use crate::output;
 
@@ -15,12 +14,7 @@ pub async fn execute_with_base_url(
     workspace: Option<i64>,
     base_url: Option<&str>,
 ) -> Result<()> {
-    let store = credentials::get_store()?;
-    let cred = store.read()?;
-    let client = match base_url {
-        Some(url) => TogglClient::new_with_base_url(&cred.api_token, url)?,
-        None => TogglClient::new(&cred.api_token)?,
-    };
+    let client = build_client(base_url)?;
     run(action, json, workspace, &client).await
 }
 
