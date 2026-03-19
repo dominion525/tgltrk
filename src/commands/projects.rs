@@ -1,5 +1,3 @@
-use colored::Colorize;
-
 use crate::api::client::{ApiClient, CreateProjectParams, TogglClient, UpdateProjectParams};
 use crate::cli::ProjectsAction;
 use crate::commands::{cache_get, cache_set, invalidate_cache, resolve_workspace_id, CacheHits};
@@ -81,13 +79,7 @@ async fn create(
     };
     let project = client.create_project(wid, &params).await?;
     invalidate_cache("projects");
-    if json {
-        output::print_result(&project, true, hits)?;
-    } else {
-        println!("{} Project created", "✓".green().bold());
-        println!("{project}");
-    }
-    Ok(())
+    output::print_success(&project, json, "Project created", hits)
 }
 
 async fn update(
@@ -101,13 +93,7 @@ async fn update(
     let params = UpdateProjectParams { name };
     let project = client.update_project(wid, id, &params).await?;
     invalidate_cache("projects");
-    if json {
-        output::print_result(&project, true, hits)?;
-    } else {
-        println!("{} Project updated", "✓".green().bold());
-        println!("{project}");
-    }
-    Ok(())
+    output::print_success(&project, json, "Project updated", hits)
 }
 
 async fn delete(
@@ -119,12 +105,7 @@ async fn delete(
 ) -> Result<()> {
     client.delete_project(wid, id).await?;
     invalidate_cache("projects");
-    if json {
-        output::print_null(json, hits)?;
-    } else {
-        println!("{} Project #{id} deleted", "✓".green().bold());
-    }
-    Ok(())
+    output::print_deleted(json, &format!("Project #{id} deleted"), hits)
 }
 
 #[cfg(test)]

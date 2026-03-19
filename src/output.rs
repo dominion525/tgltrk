@@ -61,6 +61,32 @@ pub fn print_list<T: Serialize + fmt::Display>(
     }
 }
 
+pub fn print_success<T: Serialize + fmt::Display>(
+    value: &T,
+    json: bool,
+    message: &str,
+    hits: &CacheHits,
+) -> Result<()> {
+    if json {
+        print_json(&make_envelope(value, hits))
+    } else {
+        print_cache_hits_text(hits);
+        println!("{} {message}", "✓".green().bold());
+        println!("{value}");
+        Ok(())
+    }
+}
+
+pub fn print_deleted(json: bool, message: &str, hits: &CacheHits) -> Result<()> {
+    if json {
+        print_json(&make_envelope(Option::<()>::None, hits))
+    } else {
+        print_cache_hits_text(hits);
+        println!("{} {message}", "✓".green().bold());
+        Ok(())
+    }
+}
+
 pub fn print_null(json: bool, hits: &CacheHits) -> Result<()> {
     if json {
         print_json(&make_envelope(Option::<()>::None, hits))
@@ -155,5 +181,31 @@ mod tests {
         let json = serde_json::to_string(&envelope).unwrap();
         let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed["meta"]["cached"], serde_json::json!([]));
+    }
+
+    #[test]
+    fn print_success_text_mode() {
+        let user = make_user();
+        let hits = CacheHits::new();
+        assert!(print_success(&user, false, "User fetched", &hits).is_ok());
+    }
+
+    #[test]
+    fn print_success_json_mode() {
+        let user = make_user();
+        let hits = CacheHits::new();
+        assert!(print_success(&user, true, "User fetched", &hits).is_ok());
+    }
+
+    #[test]
+    fn print_deleted_text_mode() {
+        let hits = CacheHits::new();
+        assert!(print_deleted(false, "Project #1 deleted", &hits).is_ok());
+    }
+
+    #[test]
+    fn print_deleted_json_mode() {
+        let hits = CacheHits::new();
+        assert!(print_deleted(true, "Project #1 deleted", &hits).is_ok());
     }
 }

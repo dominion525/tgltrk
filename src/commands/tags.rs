@@ -1,5 +1,3 @@
-use colored::Colorize;
-
 use crate::api::client::{ApiClient, TogglClient};
 use crate::cli::TagsAction;
 use crate::commands::{cache_get, cache_set, invalidate_cache, resolve_workspace_id, CacheHits};
@@ -66,13 +64,7 @@ async fn create(
 ) -> Result<()> {
     let tag = client.create_tag(wid, name).await?;
     invalidate_cache("tags");
-    if json {
-        output::print_result(&tag, true, hits)?;
-    } else {
-        println!("{} Tag created", "✓".green().bold());
-        println!("{tag}");
-    }
-    Ok(())
+    output::print_success(&tag, json, "Tag created", hits)
 }
 
 async fn update(
@@ -85,13 +77,7 @@ async fn update(
 ) -> Result<()> {
     let tag = client.update_tag(wid, id, name).await?;
     invalidate_cache("tags");
-    if json {
-        output::print_result(&tag, true, hits)?;
-    } else {
-        println!("{} Tag updated", "✓".green().bold());
-        println!("{tag}");
-    }
-    Ok(())
+    output::print_success(&tag, json, "Tag updated", hits)
 }
 
 async fn delete(
@@ -103,12 +89,7 @@ async fn delete(
 ) -> Result<()> {
     client.delete_tag(wid, id).await?;
     invalidate_cache("tags");
-    if json {
-        output::print_null(json, hits)?;
-    } else {
-        println!("{} Tag #{id} deleted", "✓".green().bold());
-    }
-    Ok(())
+    output::print_deleted(json, &format!("Tag #{id} deleted"), hits)
 }
 
 #[cfg(test)]

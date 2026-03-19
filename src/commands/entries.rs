@@ -1,5 +1,3 @@
-use colored::Colorize;
-
 use crate::api::client::{ApiClient, CreateTimeEntryParams, TogglClient, UpdateTimeEntryParams};
 use crate::cli::EntriesAction;
 use crate::commands::{resolve_workspace_id, CacheHits};
@@ -107,13 +105,7 @@ async fn edit(
     let entry = client
         .update_time_entry(workspace_id, entry_id, &params)
         .await?;
-    if json {
-        output::print_result(&entry, true, hits)?;
-    } else {
-        println!("{} Entry updated", "✓".green().bold());
-        println!("{entry}");
-    }
-    Ok(())
+    output::print_success(&entry, json, "Entry updated", hits)
 }
 
 async fn delete(
@@ -124,12 +116,7 @@ async fn delete(
     hits: &CacheHits,
 ) -> Result<()> {
     client.delete_time_entry(workspace_id, entry_id).await?;
-    if json {
-        output::print_null(json, hits)?;
-    } else {
-        println!("{} Entry #{entry_id} deleted", "✓".green().bold());
-    }
-    Ok(())
+    output::print_deleted(json, &format!("Entry #{entry_id} deleted"), hits)
 }
 
 async fn continue_entry(
@@ -148,13 +135,7 @@ async fn continue_entry(
         billable: source.billable,
     };
     let entry = client.create_time_entry(workspace_id, &params).await?;
-    if json {
-        output::print_result(&entry, true, hits)?;
-    } else {
-        println!("{} Timer continued", "✓".green().bold());
-        println!("{entry}");
-    }
-    Ok(())
+    output::print_success(&entry, json, "Timer continued", hits)
 }
 
 #[cfg(test)]

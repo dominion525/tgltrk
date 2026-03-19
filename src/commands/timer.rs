@@ -98,13 +98,7 @@ async fn start(
         billable,
     };
     let entry = client.create_time_entry(workspace_id, &params).await?;
-    if json {
-        output::print_result(&entry, true, hits)?;
-    } else {
-        println!("{} Timer started", "✓".green().bold());
-        println!("{entry}");
-    }
-    Ok(())
+    output::print_success(&entry, json, "Timer started", hits)
 }
 
 async fn stop(
@@ -120,14 +114,7 @@ async fn stop(
 
     let wid = workspace.unwrap_or(current.workspace_id);
     let entry = client.stop_time_entry(wid, current.id).await?;
-
-    if json {
-        output::print_result(&entry, true, hits)?;
-    } else {
-        println!("{} Timer stopped", "✓".green().bold());
-        println!("{entry}");
-    }
-    Ok(())
+    output::print_success(&entry, json, "Timer stopped", hits)
 }
 
 #[cfg(test)]
