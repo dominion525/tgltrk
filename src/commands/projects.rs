@@ -1,6 +1,6 @@
 use crate::api::client::{ApiClient, CreateProjectParams, TogglClient, UpdateProjectParams};
 use crate::cli::ProjectsAction;
-use crate::commands::{cache_get, cache_set, invalidate_cache, resolve_workspace_id, CacheHits};
+use crate::commands::{cached_fetch, invalidate_cache, resolve_workspace_id, CacheHits};
 use crate::credentials;
 use crate::error::Result;
 use crate::output;
@@ -47,12 +47,7 @@ async fn list(
     client: &(impl ApiClient + ?Sized),
     hits: &mut CacheHits,
 ) -> Result<()> {
-    if let Some(cached) = cache_get::<Vec<crate::models::Project>>("projects") {
-        hits.record("projects");
-        return output::print_list(&cached, json, hits);
-    }
-    let projects = client.list_projects(wid).await?;
-    cache_set("projects", &projects);
+    let projects = cached_fetch("projects", hits, client.list_projects(wid)).await?;
     output::print_list(&projects, json, hits)
 }
 

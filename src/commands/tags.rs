@@ -1,6 +1,6 @@
 use crate::api::client::{ApiClient, TogglClient};
 use crate::cli::TagsAction;
-use crate::commands::{cache_get, cache_set, invalidate_cache, resolve_workspace_id, CacheHits};
+use crate::commands::{cached_fetch, invalidate_cache, resolve_workspace_id, CacheHits};
 use crate::credentials;
 use crate::error::Result;
 use crate::output;
@@ -46,12 +46,7 @@ async fn list(
     client: &(impl ApiClient + ?Sized),
     hits: &mut CacheHits,
 ) -> Result<()> {
-    if let Some(cached) = cache_get::<Vec<crate::models::Tag>>("tags") {
-        hits.record("tags");
-        return output::print_list(&cached, json, hits);
-    }
-    let tags = client.list_tags(wid).await?;
-    cache_set("tags", &tags);
+    let tags = cached_fetch("tags", hits, client.list_tags(wid)).await?;
     output::print_list(&tags, json, hits)
 }
 

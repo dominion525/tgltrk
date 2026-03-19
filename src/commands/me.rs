@@ -1,8 +1,7 @@
 use crate::api::client::{ApiClient, TogglClient};
-use crate::commands::{cache_get, cache_set, CacheHits};
+use crate::commands::{cached_fetch, CacheHits};
 use crate::credentials;
 use crate::error::Result;
-use crate::models::User;
 use crate::output;
 
 pub async fn execute(json: bool, workspace: Option<i64>) -> Result<()> {
@@ -25,12 +24,7 @@ pub async fn execute_with_base_url(
 
 async fn run(json: bool, client: &(impl ApiClient + ?Sized)) -> Result<()> {
     let mut hits = CacheHits::new();
-    if let Some(cached) = cache_get::<User>("user") {
-        hits.record("user");
-        return output::print_result(&cached, json, &hits);
-    }
-    let user = client.get_me().await?;
-    cache_set("user", &user);
+    let user = cached_fetch("user", &mut hits, client.get_me()).await?;
     output::print_result(&user, json, &hits)
 }
 

@@ -77,14 +77,25 @@ pub fn invalidate_cache(key: &str) {
     }
 }
 
-pub fn cache_set<T: serde::Serialize>(key: &str, value: &T) {
-    if let Some(cache) = get_cache() {
-        let _ = cache.set(key, value);
+pub async fn cached_fetch<T, Fut>(
+    key: &str,
+    hits: &mut CacheHits,
+    fetch: Fut,
+) -> Result<T>
+where
+    T: serde::Serialize + serde::de::DeserializeOwned,
+    Fut: std::future::Future<Output = Result<T>>,
+{
+    let cache = get_cache();
+    if let Some(cached) = cache.as_ref().and_then(|c| c.get::<T>(key)) {
+        hits.record(key);
+        return Ok(cached);
     }
-}
-
-pub fn cache_get<T: serde::de::DeserializeOwned>(key: &str) -> Option<T> {
-    get_cache().and_then(|cache| cache.get(key))
+    let value = fetch.await?;
+    if let Some(c) = &cache {
+        let _ = c.set(key, &value);
+    }
+    Ok(value)
 }
 
 #[cfg(test)]
