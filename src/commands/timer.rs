@@ -157,4 +157,87 @@ mod tests {
         let result = run(TimerAction::Stop, false, None, &mock).await;
         assert!(result.is_ok());
     }
+
+    #[tokio::test]
+    async fn start_creates_time_entry() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_time_entry()
+            .returning(|_, _| Ok(make_entry(100, true)));
+        let result = run(
+            TimerAction::Start {
+                description: Some("Work".to_string()),
+                project: Some(5),
+                task: None,
+                tags: Some(vec!["dev".to_string()]),
+                billable: true,
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn start_with_minimal_params() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_time_entry()
+            .returning(|_, _| Ok(make_entry(101, true)));
+        let result = run(
+            TimerAction::Start {
+                description: None,
+                project: None,
+                task: None,
+                tags: None,
+                billable: false,
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn start_with_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_time_entry()
+            .returning(|_, _| Ok(make_entry(102, true)));
+        let result = run(
+            TimerAction::Start {
+                description: Some("json test".to_string()),
+                project: None,
+                task: None,
+                tags: None,
+                billable: false,
+            },
+            true,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn current_with_running_timer() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_current_timer()
+            .returning(|| Ok(Some(make_entry(50, true))));
+        let result = run(TimerAction::Current, false, None, &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn stop_with_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_current_timer()
+            .returning(|| Ok(Some(make_entry(10, true))));
+        mock.expect_stop_time_entry()
+            .returning(|_, _| Ok(make_entry(10, false)));
+        let result = run(TimerAction::Stop, true, None, &mock).await;
+        assert!(result.is_ok());
+    }
 }

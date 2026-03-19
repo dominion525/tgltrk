@@ -52,3 +52,58 @@ impl fmt::Display for TimeEntry {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_entry(duration: i64, tags: Vec<String>) -> TimeEntry {
+        TimeEntry {
+            id: 1,
+            workspace_id: 1,
+            description: Some("Test".to_string()),
+            start: Utc::now(),
+            stop: if duration >= 0 {
+                Some(Utc::now())
+            } else {
+                None
+            },
+            duration,
+            project_id: None,
+            task_id: None,
+            tags,
+            billable: false,
+        }
+    }
+
+    #[test]
+    fn is_running_negative_duration() {
+        let e = make_entry(-1000, vec![]);
+        assert!(e.is_running());
+    }
+
+    #[test]
+    fn is_running_positive_duration() {
+        let e = make_entry(3600, vec![]);
+        assert!(!e.is_running());
+    }
+
+    #[test]
+    fn is_running_zero_duration() {
+        let e = make_entry(0, vec![]);
+        assert!(!e.is_running());
+    }
+
+    #[test]
+    fn display_duration_stopped() {
+        let e = make_entry(3661, vec![]);
+        assert_eq!(e.display_duration(), "01:01:01");
+    }
+
+    #[test]
+    fn display_format_with_tags() {
+        let e = make_entry(3600, vec!["a".to_string(), "b".to_string()]);
+        let output = format!("{e}");
+        assert!(output.contains("[a, b]"), "got: {output}");
+    }
+}

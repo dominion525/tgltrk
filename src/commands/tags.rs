@@ -84,47 +84,112 @@ async fn delete(wid: i64, id: i64, client: &(impl ApiClient + ?Sized)) -> Result
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
-    use crate::models::{Tag, User};
+    use crate::models::Tag;
 
-    fn mock_user() -> User {
-        User {
-            email: "t@t.com".to_string(),
-            fullname: "T".to_string(),
-            default_workspace_id: 1,
-            timezone: "UTC".to_string(),
+    fn make_tag(id: i64, name: &str) -> Tag {
+        Tag {
+            id,
+            workspace_id: 1,
+            name: name.to_string(),
         }
     }
 
     #[tokio::test]
     async fn list_tags_displays_all() {
         let mut mock = MockApiClient::new();
-        mock.expect_get_me().returning(|| Ok(mock_user()));
-        mock.expect_list_tags().returning(|_| {
-            Ok(vec![
-                Tag {
-                    id: 1,
-                    workspace_id: 1,
-                    name: "urgent".to_string(),
-                },
-                Tag {
-                    id: 2,
-                    workspace_id: 1,
-                    name: "billing".to_string(),
-                },
-            ])
-        });
-        let result = run(TagsAction::List, false, None, &mock).await;
+        mock.expect_list_tags()
+            .returning(|_| Ok(vec![make_tag(1, "urgent"), make_tag(2, "billing")]));
+        let result = run(TagsAction::List, false, Some(1), &mock).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn delete_tag_calls_api() {
         let mut mock = MockApiClient::new();
-        mock.expect_get_me().returning(|| Ok(mock_user()));
         mock.expect_delete_tag()
             .withf(|wid, tid| *wid == 1 && *tid == 3)
             .returning(|_, _| Ok(()));
-        let result = run(TagsAction::Delete { id: 3 }, false, None, &mock).await;
+        let result = run(TagsAction::Delete { id: 3 }, false, Some(1), &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_tag_calls_api() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_tag()
+            .returning(|_, _| Ok(make_tag(10, "urgent")));
+        let result = run(
+            TagsAction::Create {
+                name: "urgent".to_string(),
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_tag_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_tag()
+            .returning(|_, _| Ok(make_tag(10, "urgent")));
+        let result = run(
+            TagsAction::Create {
+                name: "urgent".to_string(),
+            },
+            true,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn update_tag_calls_api() {
+        let mut mock = MockApiClient::new();
+        mock.expect_update_tag()
+            .withf(|wid, tid, _| *wid == 1 && *tid == 5)
+            .returning(|_, _, _| Ok(make_tag(5, "renamed")));
+        let result = run(
+            TagsAction::Update {
+                id: 5,
+                name: "renamed".to_string(),
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn update_tag_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_update_tag()
+            .returning(|_, _, _| Ok(make_tag(5, "renamed")));
+        let result = run(
+            TagsAction::Update {
+                id: 5,
+                name: "renamed".to_string(),
+            },
+            true,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn list_tags_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_list_tags()
+            .returning(|_| Ok(vec![make_tag(1, "urgent"), make_tag(2, "billing")]));
+        let result = run(TagsAction::List, true, Some(1), &mock).await;
         assert!(result.is_ok());
     }
 }

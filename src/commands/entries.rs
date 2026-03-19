@@ -153,6 +153,22 @@ mod tests {
         }
     }
 
+    fn make_running_entry(id: i64) -> TimeEntry {
+        let now = Utc::now();
+        TimeEntry {
+            id,
+            workspace_id: 1,
+            description: Some("Test entry".to_string()),
+            start: now,
+            stop: None,
+            duration: -now.timestamp(),
+            project_id: None,
+            task_id: None,
+            tags: vec![],
+            billable: false,
+        }
+    }
+
     #[tokio::test]
     async fn list_entries_with_count() {
         let mut mock = MockApiClient::new();
@@ -175,33 +191,134 @@ mod tests {
     #[tokio::test]
     async fn continue_entry_copies_fields() {
         let mut mock = MockApiClient::new();
-        mock.expect_get_me().returning(|| {
-            Ok(crate::models::User {
-                email: "t@t.com".to_string(),
-                fullname: "T".to_string(),
-                default_workspace_id: 1,
-                timezone: "UTC".to_string(),
-            })
-        });
         mock.expect_get_time_entry()
             .withf(|id| *id == 5)
             .returning(|_| Ok(make_entry(5)));
-        mock.expect_create_time_entry().returning(|_, _| {
-            let now = Utc::now();
-            Ok(TimeEntry {
-                id: 6,
-                workspace_id: 1,
-                description: Some("Test entry".to_string()),
-                start: now,
-                stop: None,
-                duration: -now.timestamp(),
-                project_id: None,
-                task_id: None,
-                tags: vec!["tag1".to_string()],
-                billable: false,
-            })
-        });
-        let result = run(EntriesAction::Continue { id: 5 }, false, None, &mock).await;
+        mock.expect_create_time_entry()
+            .returning(|_, _| Ok(make_running_entry(6)));
+        let result = run(EntriesAction::Continue { id: 5 }, false, Some(1), &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn list_without_count() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_time_entries()
+            .returning(|_, _| Ok(vec![make_entry(1), make_entry(2), make_entry(3)]));
+        let result = run(
+            EntriesAction::List {
+                since: None,
+                until: None,
+                count: None,
+            },
+            false,
+            None,
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn list_with_since_until() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_time_entries()
+            .withf(|s, u| s.as_deref() == Some("2024-01-01") && u.as_deref() == Some("2024-01-31"))
+            .returning(|_, _| Ok(vec![make_entry(1)]));
+        let result = run(
+            EntriesAction::List {
+                since: Some("2024-01-01".to_string()),
+                until: Some("2024-01-31".to_string()),
+                count: None,
+            },
+            false,
+            None,
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn get_entry_by_id() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_time_entry()
+            .withf(|id| *id == 42)
+            .returning(|_| Ok(make_entry(42)));
+        let result = run(EntriesAction::Get { id: 42 }, false, None, &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn get_entry_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_time_entry()
+            .returning(|_| Ok(make_entry(42)));
+        let result = run(EntriesAction::Get { id: 42 }, true, None, &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn edit_entry_updates_fields() {
+        let mut mock = MockApiClient::new();
+        mock.expect_update_time_entry()
+            .withf(|wid, eid, _| *wid == 1 && *eid == 10)
+            .returning(|_, _, _| Ok(make_entry(10)));
+        let result = run(
+            EntriesAction::Edit {
+                id: 10,
+                description: Some("Updated".to_string()),
+                project: None,
+                tags: None,
+                billable: Some(true),
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn edit_entry_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_update_time_entry()
+            .returning(|_, _, _| Ok(make_entry(10)));
+        let result = run(
+            EntriesAction::Edit {
+                id: 10,
+                description: Some("Updated".to_string()),
+                project: None,
+                tags: None,
+                billable: None,
+            },
+            true,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn delete_entry_calls_api() {
+        let mut mock = MockApiClient::new();
+        mock.expect_delete_time_entry()
+            .withf(|wid, eid| *wid == 1 && *eid == 7)
+            .returning(|_, _| Ok(()));
+        let result = run(EntriesAction::Delete { id: 7 }, false, Some(1), &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn continue_with_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_time_entry()
+            .returning(|_| Ok(make_entry(5)));
+        mock.expect_create_time_entry()
+            .returning(|_, _| Ok(make_running_entry(6)));
+        let result = run(EntriesAction::Continue { id: 5 }, true, Some(1), &mock).await;
         assert!(result.is_ok());
     }
 }

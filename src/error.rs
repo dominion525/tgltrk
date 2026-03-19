@@ -49,3 +49,79 @@ impl From<keyring::Error> for AppError {
         AppError::Keyring(e.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn display_api_error() {
+        let e = AppError::Api("msg".to_string());
+        assert_eq!(e.to_string(), "API error: msg");
+    }
+
+    #[test]
+    fn display_http_status() {
+        let e = AppError::HttpStatus {
+            status: 404,
+            body: "not found".to_string(),
+        };
+        assert_eq!(e.to_string(), "HTTP 404: not found");
+    }
+
+    #[test]
+    fn display_auth_error() {
+        let e = AppError::Auth("msg".to_string());
+        assert_eq!(e.to_string(), "Authentication error: msg");
+    }
+
+    #[test]
+    fn display_keyring_error() {
+        let e = AppError::Keyring("msg".to_string());
+        assert_eq!(e.to_string(), "Keyring error: msg");
+    }
+
+    #[test]
+    fn display_cache_error() {
+        let e = AppError::Cache("msg".to_string());
+        assert_eq!(e.to_string(), "Cache error: msg");
+    }
+
+    #[test]
+    fn display_not_found() {
+        let e = AppError::NotFound("msg".to_string());
+        assert_eq!(e.to_string(), "Not found: msg");
+    }
+
+    #[test]
+    fn display_invalid_input() {
+        let e = AppError::InvalidInput("msg".to_string());
+        assert_eq!(e.to_string(), "Invalid input: msg");
+    }
+
+    #[test]
+    fn from_serde_json_error() {
+        let json_err = serde_json::from_str::<String>("not json").unwrap_err();
+        let app_err = AppError::from(json_err);
+        match &app_err {
+            AppError::Api(msg) => assert!(msg.contains("JSON parse error:"), "got: {msg}"),
+            other => panic!("expected Api, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn from_keyring_error() {
+        let kr_err = keyring::Error::NoEntry;
+        let app_err = AppError::from(kr_err);
+        match &app_err {
+            AppError::Keyring(_) => {}
+            other => panic!("expected Keyring, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn error_trait_impl() {
+        let e = AppError::Api("test".to_string());
+        let _: &dyn std::error::Error = &e;
+    }
+}

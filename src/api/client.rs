@@ -351,3 +351,18 @@ impl ApiClient for TogglClient {
         self.delete_request(&url).await
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_with_valid_token_succeeds() {
+        assert!(TogglClient::new("valid_token").is_ok());
+    }
+
+    #[test]
+    fn new_with_empty_token_succeeds() {
+        assert!(TogglClient::new("").is_ok());
+    }
+}

@@ -462,4 +462,45 @@ mod tests {
         let statuses = cache.status();
         assert!(statuses.is_empty());
     }
+
+    #[test]
+    fn cache_error_display_invalid_key() {
+        let e = CacheError::InvalidKey("bad!".to_string());
+        let msg = e.to_string();
+        assert!(msg.contains("Invalid cache key"), "got: {msg}");
+    }
+
+    #[test]
+    fn cache_error_display_io() {
+        let e = CacheError::Io {
+            op: "read",
+            path: std::path::PathBuf::from("/tmp/test"),
+            source: std::io::Error::new(std::io::ErrorKind::NotFound, "not found"),
+        };
+        let msg = e.to_string();
+        assert!(msg.contains("Cache read failed"), "got: {msg}");
+    }
+
+    #[test]
+    fn cache_error_display_json() {
+        let json_err = serde_json::from_str::<String>("bad").unwrap_err();
+        let e = CacheError::Json {
+            path: std::path::PathBuf::from("/tmp/test.json"),
+            source: json_err,
+        };
+        let msg = e.to_string();
+        assert!(msg.contains("Cache JSON error"), "got: {msg}");
+    }
+
+    #[test]
+    fn cache_file_status_display() {
+        let status = CacheFileStatus {
+            key: "projects".to_string(),
+            size: 1024,
+            modified: None,
+        };
+        let msg = format!("{status}");
+        assert!(msg.contains("projects"), "got: {msg}");
+        assert!(msg.contains("1024"), "got: {msg}");
+    }
 }

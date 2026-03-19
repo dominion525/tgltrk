@@ -143,3 +143,115 @@ pub struct CreateTagRequest {
 pub struct UpdateTagRequest {
     pub name: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use chrono::Utc;
+
+    #[test]
+    fn wire_user_to_user() {
+        let w = WireUser {
+            email: "a@b.com".to_string(),
+            fullname: "Alice".to_string(),
+            default_workspace_id: 42,
+            timezone: "UTC".to_string(),
+        };
+        let u: User = w.into();
+        assert_eq!(u.email, "a@b.com");
+        assert_eq!(u.fullname, "Alice");
+        assert_eq!(u.default_workspace_id, 42);
+        assert_eq!(u.timezone, "UTC");
+    }
+
+    #[test]
+    fn wire_time_entry_with_tags() {
+        let now = Utc::now();
+        let w = WireTimeEntry {
+            id: 1,
+            workspace_id: 2,
+            description: Some("desc".to_string()),
+            start: now,
+            stop: Some(now),
+            duration: 3600,
+            project_id: Some(10),
+            task_id: Some(20),
+            tags: Some(vec!["a".to_string()]),
+            billable: true,
+        };
+        let e: TimeEntry = w.into();
+        assert_eq!(e.tags, vec!["a".to_string()]);
+    }
+
+    #[test]
+    fn wire_time_entry_without_tags() {
+        let now = Utc::now();
+        let w = WireTimeEntry {
+            id: 1,
+            workspace_id: 2,
+            description: None,
+            start: now,
+            stop: None,
+            duration: -1,
+            project_id: None,
+            task_id: None,
+            tags: None,
+            billable: false,
+        };
+        let e: TimeEntry = w.into();
+        assert!(e.tags.is_empty());
+    }
+
+    #[test]
+    fn wire_time_entry_preserves_optionals() {
+        let now = Utc::now();
+        let w = WireTimeEntry {
+            id: 1,
+            workspace_id: 2,
+            description: None,
+            start: now,
+            stop: None,
+            duration: 100,
+            project_id: None,
+            task_id: None,
+            tags: None,
+            billable: false,
+        };
+        let e: TimeEntry = w.into();
+        assert!(e.description.is_none());
+        assert!(e.stop.is_none());
+        assert!(e.project_id.is_none());
+    }
+
+    #[test]
+    fn wire_project_to_project() {
+        let w = WireProject {
+            id: 5,
+            workspace_id: 3,
+            name: "Proj".to_string(),
+            active: true,
+            color: "#fff".to_string(),
+            billable: Some(true),
+        };
+        let p: Project = w.into();
+        assert_eq!(p.id, 5);
+        assert_eq!(p.workspace_id, 3);
+        assert_eq!(p.name, "Proj");
+        assert!(p.active);
+        assert_eq!(p.color, "#fff");
+        assert_eq!(p.billable, Some(true));
+    }
+
+    #[test]
+    fn wire_tag_to_tag() {
+        let w = WireTag {
+            id: 7,
+            workspace_id: 4,
+            name: "urgent".to_string(),
+        };
+        let t: Tag = w.into();
+        assert_eq!(t.id, 7);
+        assert_eq!(t.workspace_id, 4);
+        assert_eq!(t.name, "urgent");
+    }
+}

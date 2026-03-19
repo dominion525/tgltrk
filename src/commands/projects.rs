@@ -94,16 +94,7 @@ async fn delete(wid: i64, id: i64, client: &(impl ApiClient + ?Sized)) -> Result
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
-    use crate::models::{Project, User};
-
-    fn mock_user() -> User {
-        User {
-            email: "t@t.com".to_string(),
-            fullname: "T".to_string(),
-            default_workspace_id: 1,
-            timezone: "UTC".to_string(),
-        }
-    }
+    use crate::models::Project;
 
     fn make_project(id: i64, name: &str) -> Project {
         Project {
@@ -119,25 +110,122 @@ mod tests {
     #[tokio::test]
     async fn list_projects_displays_all() {
         let mut mock = MockApiClient::new();
-        mock.expect_get_me().returning(|| Ok(mock_user()));
         mock.expect_list_projects().returning(|_| {
             Ok(vec![
                 make_project(1, "Project A"),
                 make_project(2, "Project B"),
             ])
         });
-        let result = run(ProjectsAction::List, false, None, &mock).await;
+        let result = run(ProjectsAction::List, false, Some(1), &mock).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
     async fn delete_project_calls_api() {
         let mut mock = MockApiClient::new();
-        mock.expect_get_me().returning(|| Ok(mock_user()));
         mock.expect_delete_project()
             .withf(|wid, pid| *wid == 1 && *pid == 5)
             .returning(|_, _| Ok(()));
-        let result = run(ProjectsAction::Delete { id: 5 }, false, None, &mock).await;
+        let result = run(ProjectsAction::Delete { id: 5 }, false, Some(1), &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn get_project_by_id() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_project()
+            .withf(|wid, pid| *wid == 1 && *pid == 10)
+            .returning(|_, _| Ok(make_project(10, "My Project")));
+        let result = run(ProjectsAction::Get { id: 10 }, false, Some(1), &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn get_project_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_get_project()
+            .returning(|_, _| Ok(make_project(10, "My Project")));
+        let result = run(ProjectsAction::Get { id: 10 }, true, Some(1), &mock).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_project_calls_api() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_project()
+            .returning(|_, _| Ok(make_project(11, "New")));
+        let result = run(
+            ProjectsAction::Create {
+                name: "New".to_string(),
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_project_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_project()
+            .returning(|_, _| Ok(make_project(11, "New")));
+        let result = run(
+            ProjectsAction::Create {
+                name: "New".to_string(),
+            },
+            true,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn update_project_calls_api() {
+        let mut mock = MockApiClient::new();
+        mock.expect_update_project()
+            .withf(|wid, pid, _| *wid == 1 && *pid == 10)
+            .returning(|_, _, _| Ok(make_project(10, "Renamed")));
+        let result = run(
+            ProjectsAction::Update {
+                id: 10,
+                name: Some("Renamed".to_string()),
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn update_project_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_update_project()
+            .returning(|_, _, _| Ok(make_project(10, "Renamed")));
+        let result = run(
+            ProjectsAction::Update {
+                id: 10,
+                name: Some("Renamed".to_string()),
+            },
+            true,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn list_projects_json_output() {
+        let mut mock = MockApiClient::new();
+        mock.expect_list_projects()
+            .returning(|_| Ok(vec![make_project(1, "A"), make_project(2, "B")]));
+        let result = run(ProjectsAction::List, true, Some(1), &mock).await;
         assert!(result.is_ok());
     }
 }

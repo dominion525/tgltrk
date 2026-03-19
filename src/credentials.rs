@@ -80,3 +80,35 @@ pub fn get_store() -> Box<dyn CredentialStore> {
     }
     Box::new(KeyringStore::new().unwrap_or_else(|e| panic!("Failed to initialize keyring: {e}")))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn env_store_read_returns_token() {
+        let store = EnvStore {
+            token: "abc".to_string(),
+        };
+        let cred = store.read().unwrap();
+        assert_eq!(cred.api_token, "abc");
+    }
+
+    #[test]
+    fn env_store_save_returns_error() {
+        let store = EnvStore {
+            token: "abc".to_string(),
+        };
+        let result = store.save("x");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn env_store_clear_returns_error() {
+        let store = EnvStore {
+            token: "abc".to_string(),
+        };
+        let result = store.clear();
+        assert!(result.is_err());
+    }
+}
