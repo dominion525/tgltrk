@@ -7,6 +7,7 @@ pub mod tags;
 pub mod timer;
 
 use chrono::TimeDelta;
+use colored::Colorize;
 
 use crate::api::client::ApiClient;
 use crate::cache::FileCache;
@@ -36,6 +37,7 @@ async fn resolve_workspace_id_inner(
     // Try cache first
     if let Some(cache) = cache {
         if let Some(user) = cache.get::<User>("user") {
+            print_cache_hit("user");
             return Ok(user.default_workspace_id);
         }
     }
@@ -64,6 +66,10 @@ pub fn cache_set<T: serde::Serialize>(key: &str, value: &T) {
 
 pub fn cache_get<T: serde::de::DeserializeOwned>(key: &str) -> Option<T> {
     get_cache().and_then(|cache| cache.get(key))
+}
+
+pub fn print_cache_hit(entity: &str) {
+    println!("{}", format!("(cached: {entity})").dimmed());
 }
 
 #[cfg(test)]

@@ -2,7 +2,9 @@ use colored::Colorize;
 
 use crate::api::client::{ApiClient, TogglClient};
 use crate::cli::TagsAction;
-use crate::commands::{cache_get, cache_set, invalidate_cache, resolve_workspace_id};
+use crate::commands::{
+    cache_get, cache_set, invalidate_cache, print_cache_hit, resolve_workspace_id,
+};
 use crate::credentials;
 use crate::error::Result;
 use crate::output;
@@ -43,6 +45,9 @@ async fn run(
 
 async fn list(json: bool, wid: i64, client: &(impl ApiClient + ?Sized)) -> Result<()> {
     if let Some(cached) = cache_get::<Vec<crate::models::Tag>>("tags") {
+        if !json {
+            print_cache_hit("tags");
+        }
         return output::print_list(&cached, json);
     }
     let tags = client.list_tags(wid).await?;
