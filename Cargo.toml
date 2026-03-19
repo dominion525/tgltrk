@@ -9,7 +9,7 @@ license = "MIT"
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 colored = "2"
-tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1", features = ["rt", "macros"] }
 reqwest = { version = "0.12", features = ["json"] }
 base64 = "0.22"
 serde = { version = "1", features = ["derive"] }

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 // ---------------------------------------------------------------------------
 
 #[derive(Debug)]
-#[allow(dead_code)]
+
 pub enum CacheError {
     InvalidKey(String),
     Io {
@@ -46,7 +46,7 @@ impl std::error::Error for CacheError {}
 // ---------------------------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Debug)]
-#[allow(dead_code)]
+
 struct CacheEntry<T> {
     data: T,
     cached_at: DateTime<Utc>,
@@ -56,7 +56,7 @@ struct CacheEntry<T> {
 // Pure functions
 // ---------------------------------------------------------------------------
 
-#[allow(dead_code)]
+
 fn is_expired(cached_at: DateTime<Utc>, ttl: TimeDelta, now: DateTime<Utc>) -> bool {
     now.signed_duration_since(cached_at) >= ttl
 }
@@ -77,13 +77,13 @@ fn cache_file_path(cache_dir: &Path, key: &str) -> Result<PathBuf, CacheError> {
 // FileCache
 // ---------------------------------------------------------------------------
 
-#[allow(dead_code)]
+
 pub struct FileCache {
     cache_dir: PathBuf,
     default_ttl: TimeDelta,
 }
 
-#[allow(dead_code)]
+
 impl FileCache {
     pub fn new(cache_dir: PathBuf, default_ttl: TimeDelta) -> Self {
         Self {

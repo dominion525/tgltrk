@@ -30,7 +30,7 @@ pub async fn run_cli(cli: Cli) -> error::Result<()> {
     }
 }
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     let cli = Cli::parse();
     if let Err(e) = run_cli(cli).await {
@@ -42,7 +42,7 @@ async fn main() {
 /// Mutex to serialize tests that modify environment variables (e.g. TOGGL_API_TOKEN).
 /// Without this, parallel test threads race on set_var/remove_var.
 #[cfg(test)]
-pub(crate) static ENV_MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+pub(crate) static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[cfg(test)]
 mod tests {

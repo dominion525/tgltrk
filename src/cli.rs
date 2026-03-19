@@ -1,4 +1,11 @@
+use chrono::NaiveDate;
 use clap::{Parser, Subcommand};
+
+fn parse_date(s: &str) -> Result<String, String> {
+    NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .map_err(|_| format!("Invalid date format: '{s}' (expected YYYY-MM-DD)"))?;
+    Ok(s.to_string())
+}
 
 #[derive(Parser)]
 #[command(name = "tgltrk", about = "Toggl Track CLI", version)]
@@ -95,10 +102,10 @@ pub enum EntriesAction {
     /// List recent time entries
     List {
         /// Start date (YYYY-MM-DD)
-        #[arg(long)]
+        #[arg(long, value_parser = parse_date)]
         since: Option<String>,
         /// End date (YYYY-MM-DD)
-        #[arg(long)]
+        #[arg(long, value_parser = parse_date)]
         until: Option<String>,
         /// Number of entries to show
         #[arg(short = 'n', long)]

@@ -120,7 +120,7 @@ mod tests {
 
     #[tokio::test]
     async fn get_store_with_env_var_returns_env_store() {
-        let _guard = crate::ENV_MUTEX.lock().await;
+        let _guard = crate::ENV_MUTEX.lock().unwrap();
         // SAFETY: env var access serialized by ENV_MUTEX
         unsafe { std::env::set_var("TOGGL_API_TOKEN", "my_test_token") };
         let store = get_store().unwrap();
