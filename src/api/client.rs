@@ -25,6 +25,18 @@ pub struct CreateTimeEntryParams {
     pub billable: bool,
 }
 
+impl From<&TimeEntry> for CreateTimeEntryParams {
+    fn from(entry: &TimeEntry) -> Self {
+        Self {
+            description: entry.description.clone(),
+            project_id: entry.project_id,
+            task_id: entry.task_id,
+            tags: entry.tags.clone(),
+            billable: entry.billable,
+        }
+    }
+}
+
 pub struct UpdateTimeEntryParams {
     pub description: Option<String>,
     pub project_id: Option<i64>,
@@ -744,6 +756,36 @@ mod tests {
 
         let result = client.delete_tag(1, 5).await;
         assert!(result.is_ok());
+    }
+
+    // --- From<&TimeEntry> for CreateTimeEntryParams ---
+
+    #[test]
+    fn from_time_entry_to_create_params() {
+        use crate::models::TimeEntry;
+        use chrono::Utc;
+
+        let now = Utc::now();
+        let entry = TimeEntry {
+            id: 42,
+            workspace_id: 1,
+            description: Some("My task".to_string()),
+            start: now,
+            stop: Some(now),
+            duration: 3600,
+            project_id: Some(10),
+            task_id: Some(20),
+            tags: vec!["a".to_string(), "b".to_string()],
+            billable: true,
+        };
+
+        let params = CreateTimeEntryParams::from(&entry);
+
+        assert_eq!(params.description, entry.description);
+        assert_eq!(params.project_id, entry.project_id);
+        assert_eq!(params.task_id, entry.task_id);
+        assert_eq!(params.tags, entry.tags);
+        assert_eq!(params.billable, entry.billable);
     }
 
     // --- error cases ---

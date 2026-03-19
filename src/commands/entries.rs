@@ -127,13 +127,7 @@ async fn continue_entry(
     hits: &CacheHits,
 ) -> Result<()> {
     let source = client.get_time_entry(entry_id).await?;
-    let params = CreateTimeEntryParams {
-        description: source.description,
-        project_id: source.project_id,
-        task_id: source.task_id,
-        tags: source.tags,
-        billable: source.billable,
-    };
+    let params = CreateTimeEntryParams::from(&source);
     let entry = client.create_time_entry(workspace_id, &params).await?;
     output::print_success(&entry, json, "Timer continued", hits)
 }
