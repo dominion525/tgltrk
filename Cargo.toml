@@ -1,0 +1,9 @@
+[package]
+name = "tgltrk"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85.0"
+description = "CLI tool for Toggl Track time tracking"
+license = "MIT"
+
+[dependencies]
