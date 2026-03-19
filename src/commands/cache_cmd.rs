@@ -14,7 +14,7 @@ fn clear_inner(cache: &FileCache) -> Result<()> {
 }
 
 fn status_inner(cache: &FileCache) -> Result<()> {
-    let statuses = cache.status();
+    let statuses = cache.status(crate::constants::CACHE_KEYS);
     if statuses.is_empty() {
         println!("Cache is empty");
         println!("Cache dir: {}", cache.cache_dir().display());

@@ -119,6 +119,7 @@ impl TogglClient {
         let http = Client::builder()
             .default_headers(headers)
             .timeout(Duration::from_secs(API_TIMEOUT_SECS))
+            .user_agent(format!("tgltrk/{}", env!("CARGO_PKG_VERSION")))
             .build()
             .map_err(|e| AppError::Api(format!("Failed to build HTTP client: {e}")))?;
 

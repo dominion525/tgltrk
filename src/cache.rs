@@ -203,8 +203,7 @@ impl FileCache {
         }
     }
 
-    pub fn status(&self) -> Vec<CacheFileStatus> {
-        let keys = ["user", "projects", "tags"];
+    pub fn status(&self, keys: &[&str]) -> Vec<CacheFileStatus> {
         keys.iter()
             .filter_map(|key| {
                 let path = cache_file_path(&self.cache_dir, key).ok()?;
@@ -451,7 +450,7 @@ mod tests {
         cache.set("projects", &vec!["p1"]).unwrap();
         cache.set("tags", &vec!["t1"]).unwrap();
 
-        let statuses = cache.status();
+        let statuses = cache.status(&["projects", "tags"]);
         assert_eq!(statuses.len(), 2);
     }
 
@@ -459,7 +458,7 @@ mod tests {
     fn status_returns_empty_when_no_cache() {
         let tmp = TempDir::new().unwrap();
         let cache = make_cache(&tmp);
-        let statuses = cache.status();
+        let statuses = cache.status(&["user", "projects", "tags"]);
         assert!(statuses.is_empty());
     }
 
