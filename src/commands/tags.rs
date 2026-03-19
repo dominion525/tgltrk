@@ -2,9 +2,7 @@ use colored::Colorize;
 
 use crate::api::client::{ApiClient, TogglClient};
 use crate::cli::TagsAction;
-use crate::commands::{
-    cache_get, cache_set, invalidate_cache, print_cache_hit, resolve_workspace_id,
-};
+use crate::commands::{cache_get, cache_set, invalidate_cache, resolve_workspace_id, CacheHits};
 use crate::credentials;
 use crate::error::Result;
 use crate::output;
@@ -34,25 +32,29 @@ async fn run(
     workspace: Option<i64>,
     client: &(impl ApiClient + ?Sized),
 ) -> Result<()> {
-    let wid = resolve_workspace_id(client, workspace).await?;
+    let mut hits = CacheHits::new();
+    let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
     match action {
-        TagsAction::List => list(json, wid, client).await,
-        TagsAction::Create { name } => create(json, wid, &name, client).await,
-        TagsAction::Update { id, name } => update(json, wid, id, &name, client).await,
-        TagsAction::Delete { id } => delete(wid, id, client).await,
+        TagsAction::List => list(json, wid, client, &mut hits).await,
+        TagsAction::Create { name } => create(json, wid, &name, client, &hits).await,
+        TagsAction::Update { id, name } => update(json, wid, id, &name, client, &hits).await,
+        TagsAction::Delete { id } => delete(json, wid, id, client, &hits).await,
     }
 }
 
-async fn list(json: bool, wid: i64, client: &(impl ApiClient + ?Sized)) -> Result<()> {
+async fn list(
+    json: bool,
+    wid: i64,
+    client: &(impl ApiClient + ?Sized),
+    hits: &mut CacheHits,
+) -> Result<()> {
     if let Some(cached) = cache_get::<Vec<crate::models::Tag>>("tags") {
-        if !json {
-            print_cache_hit("tags");
-        }
-        return output::print_list(&cached, json);
+        hits.record("tags");
+        return output::print_list(&cached, json, hits);
     }
     let tags = client.list_tags(wid).await?;
     cache_set("tags", &tags);
-    output::print_list(&tags, json)
+    output::print_list(&tags, json, hits)
 }
 
 async fn create(
@@ -60,11 +62,12 @@ async fn create(
     wid: i64,
     name: &str,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let tag = client.create_tag(wid, name).await?;
     invalidate_cache("tags");
     if json {
-        output::print_result(&tag, true)?;
+        output::print_result(&tag, true, hits)?;
     } else {
         println!("{} Tag created", "✓".green().bold());
         println!("{tag}");
@@ -78,11 +81,12 @@ async fn update(
     id: i64,
     name: &str,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let tag = client.update_tag(wid, id, name).await?;
     invalidate_cache("tags");
     if json {
-        output::print_result(&tag, true)?;
+        output::print_result(&tag, true, hits)?;
     } else {
         println!("{} Tag updated", "✓".green().bold());
         println!("{tag}");
@@ -90,10 +94,20 @@ async fn update(
     Ok(())
 }
 
-async fn delete(wid: i64, id: i64, client: &(impl ApiClient + ?Sized)) -> Result<()> {
+async fn delete(
+    json: bool,
+    wid: i64,
+    id: i64,
+    client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
+) -> Result<()> {
     client.delete_tag(wid, id).await?;
     invalidate_cache("tags");
-    println!("{} Tag #{id} deleted", "✓".green().bold());
+    if json {
+        output::print_null(json, hits)?;
+    } else {
+        println!("{} Tag #{id} deleted", "✓".green().bold());
+    }
     Ok(())
 }
 

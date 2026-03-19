@@ -2,7 +2,7 @@ use colored::Colorize;
 
 use crate::api::client::{ApiClient, CreateTimeEntryParams, TogglClient, UpdateTimeEntryParams};
 use crate::cli::EntriesAction;
-use crate::commands::resolve_workspace_id;
+use crate::commands::{resolve_workspace_id, CacheHits};
 use crate::credentials;
 use crate::error::Result;
 use crate::output;
@@ -32,13 +32,14 @@ async fn run(
     workspace: Option<i64>,
     client: &(impl ApiClient + ?Sized),
 ) -> Result<()> {
+    let mut hits = CacheHits::new();
     match action {
         EntriesAction::List {
             since,
             until,
             count,
-        } => list(json, since, until, count, client).await,
-        EntriesAction::Get { id } => get(json, id, client).await,
+        } => list(json, since, until, count, client, &hits).await,
+        EntriesAction::Get { id } => get(json, id, client, &hits).await,
         EntriesAction::Edit {
             id,
             description,
@@ -46,16 +47,16 @@ async fn run(
             tags,
             billable,
         } => {
-            let wid = resolve_workspace_id(client, workspace).await?;
-            edit(json, wid, id, description, project, tags, billable, client).await
+            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+            edit(json, wid, id, description, project, tags, billable, client, &hits).await
         }
         EntriesAction::Delete { id } => {
-            let wid = resolve_workspace_id(client, workspace).await?;
-            delete(wid, id, client).await
+            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+            delete(json, wid, id, client, &hits).await
         }
         EntriesAction::Continue { id } => {
-            let wid = resolve_workspace_id(client, workspace).await?;
-            continue_entry(json, wid, id, client).await
+            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+            continue_entry(json, wid, id, client, &hits).await
         }
     }
 }
@@ -66,17 +67,23 @@ async fn list(
     until: Option<String>,
     count: Option<usize>,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let mut entries = client.get_time_entries(since, until).await?;
     if let Some(n) = count {
         entries.truncate(n);
     }
-    output::print_list(&entries, json)
+    output::print_list(&entries, json, hits)
 }
 
-async fn get(json: bool, id: i64, client: &(impl ApiClient + ?Sized)) -> Result<()> {
+async fn get(
+    json: bool,
+    id: i64,
+    client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
+) -> Result<()> {
     let entry = client.get_time_entry(id).await?;
-    output::print_result(&entry, json)
+    output::print_result(&entry, json, hits)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -89,6 +96,7 @@ async fn edit(
     tags: Option<Vec<String>>,
     billable: Option<bool>,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let params = UpdateTimeEntryParams {
         description,
@@ -100,7 +108,7 @@ async fn edit(
         .update_time_entry(workspace_id, entry_id, &params)
         .await?;
     if json {
-        output::print_result(&entry, true)?;
+        output::print_result(&entry, true, hits)?;
     } else {
         println!("{} Entry updated", "✓".green().bold());
         println!("{entry}");
@@ -109,12 +117,18 @@ async fn edit(
 }
 
 async fn delete(
+    json: bool,
     workspace_id: i64,
     entry_id: i64,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     client.delete_time_entry(workspace_id, entry_id).await?;
-    println!("{} Entry #{entry_id} deleted", "✓".green().bold());
+    if json {
+        output::print_null(json, hits)?;
+    } else {
+        println!("{} Entry #{entry_id} deleted", "✓".green().bold());
+    }
     Ok(())
 }
 
@@ -123,6 +137,7 @@ async fn continue_entry(
     workspace_id: i64,
     entry_id: i64,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let source = client.get_time_entry(entry_id).await?;
     let params = CreateTimeEntryParams {
@@ -134,7 +149,7 @@ async fn continue_entry(
     };
     let entry = client.create_time_entry(workspace_id, &params).await?;
     if json {
-        output::print_result(&entry, true)?;
+        output::print_result(&entry, true, hits)?;
     } else {
         println!("{} Timer continued", "✓".green().bold());
         println!("{entry}");

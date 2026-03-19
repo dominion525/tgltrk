@@ -1,5 +1,5 @@
 use crate::api::client::{ApiClient, TogglClient};
-use crate::commands::{cache_get, cache_set, print_cache_hit};
+use crate::commands::{cache_get, cache_set, CacheHits};
 use crate::credentials;
 use crate::error::Result;
 use crate::models::User;
@@ -24,15 +24,14 @@ pub async fn execute_with_base_url(
 }
 
 async fn run(json: bool, client: &(impl ApiClient + ?Sized)) -> Result<()> {
-    if !json {
-        if let Some(cached) = cache_get::<User>("user") {
-            print_cache_hit("user");
-            return output::print_result(&cached, json);
-        }
+    let mut hits = CacheHits::new();
+    if let Some(cached) = cache_get::<User>("user") {
+        hits.record("user");
+        return output::print_result(&cached, json, &hits);
     }
     let user = client.get_me().await?;
     cache_set("user", &user);
-    output::print_result(&user, json)
+    output::print_result(&user, json, &hits)
 }
 
 #[cfg(test)]

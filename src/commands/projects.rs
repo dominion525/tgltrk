@@ -2,9 +2,7 @@ use colored::Colorize;
 
 use crate::api::client::{ApiClient, CreateProjectParams, TogglClient, UpdateProjectParams};
 use crate::cli::ProjectsAction;
-use crate::commands::{
-    cache_get, cache_set, invalidate_cache, print_cache_hit, resolve_workspace_id,
-};
+use crate::commands::{cache_get, cache_set, invalidate_cache, resolve_workspace_id, CacheHits};
 use crate::credentials;
 use crate::error::Result;
 use crate::output;
@@ -34,31 +32,41 @@ async fn run(
     workspace: Option<i64>,
     client: &(impl ApiClient + ?Sized),
 ) -> Result<()> {
-    let wid = resolve_workspace_id(client, workspace).await?;
+    let mut hits = CacheHits::new();
+    let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
     match action {
-        ProjectsAction::List => list(json, wid, client).await,
-        ProjectsAction::Get { id } => get(json, wid, id, client).await,
-        ProjectsAction::Create { name } => create(json, wid, &name, client).await,
-        ProjectsAction::Update { id, name } => update(json, wid, id, name, client).await,
-        ProjectsAction::Delete { id } => delete(wid, id, client).await,
+        ProjectsAction::List => list(json, wid, client, &mut hits).await,
+        ProjectsAction::Get { id } => get(json, wid, id, client, &hits).await,
+        ProjectsAction::Create { name } => create(json, wid, &name, client, &hits).await,
+        ProjectsAction::Update { id, name } => update(json, wid, id, name, client, &hits).await,
+        ProjectsAction::Delete { id } => delete(json, wid, id, client, &hits).await,
     }
 }
 
-async fn list(json: bool, wid: i64, client: &(impl ApiClient + ?Sized)) -> Result<()> {
+async fn list(
+    json: bool,
+    wid: i64,
+    client: &(impl ApiClient + ?Sized),
+    hits: &mut CacheHits,
+) -> Result<()> {
     if let Some(cached) = cache_get::<Vec<crate::models::Project>>("projects") {
-        if !json {
-            print_cache_hit("projects");
-        }
-        return output::print_list(&cached, json);
+        hits.record("projects");
+        return output::print_list(&cached, json, hits);
     }
     let projects = client.list_projects(wid).await?;
     cache_set("projects", &projects);
-    output::print_list(&projects, json)
+    output::print_list(&projects, json, hits)
 }
 
-async fn get(json: bool, wid: i64, id: i64, client: &(impl ApiClient + ?Sized)) -> Result<()> {
+async fn get(
+    json: bool,
+    wid: i64,
+    id: i64,
+    client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
+) -> Result<()> {
     let project = client.get_project(wid, id).await?;
-    output::print_result(&project, json)
+    output::print_result(&project, json, hits)
 }
 
 async fn create(
@@ -66,6 +74,7 @@ async fn create(
     wid: i64,
     name: &str,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let params = CreateProjectParams {
         name: name.to_string(),
@@ -73,7 +82,7 @@ async fn create(
     let project = client.create_project(wid, &params).await?;
     invalidate_cache("projects");
     if json {
-        output::print_result(&project, true)?;
+        output::print_result(&project, true, hits)?;
     } else {
         println!("{} Project created", "✓".green().bold());
         println!("{project}");
@@ -87,12 +96,13 @@ async fn update(
     id: i64,
     name: Option<String>,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let params = UpdateProjectParams { name };
     let project = client.update_project(wid, id, &params).await?;
     invalidate_cache("projects");
     if json {
-        output::print_result(&project, true)?;
+        output::print_result(&project, true, hits)?;
     } else {
         println!("{} Project updated", "✓".green().bold());
         println!("{project}");
@@ -100,10 +110,20 @@ async fn update(
     Ok(())
 }
 
-async fn delete(wid: i64, id: i64, client: &(impl ApiClient + ?Sized)) -> Result<()> {
+async fn delete(
+    json: bool,
+    wid: i64,
+    id: i64,
+    client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
+) -> Result<()> {
     client.delete_project(wid, id).await?;
     invalidate_cache("projects");
-    println!("{} Project #{id} deleted", "✓".green().bold());
+    if json {
+        output::print_null(json, hits)?;
+    } else {
+        println!("{} Project #{id} deleted", "✓".green().bold());
+    }
     Ok(())
 }
 

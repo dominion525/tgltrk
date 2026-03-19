@@ -2,7 +2,7 @@ use colored::Colorize;
 
 use crate::api::client::{ApiClient, CreateTimeEntryParams, TogglClient};
 use crate::cli::TimerAction;
-use crate::commands::resolve_workspace_id;
+use crate::commands::{resolve_workspace_id, CacheHits};
 use crate::credentials;
 use crate::error::{AppError, Result};
 use crate::output;
@@ -32,8 +32,9 @@ async fn run(
     workspace: Option<i64>,
     client: &(impl ApiClient + ?Sized),
 ) -> Result<()> {
+    let mut hits = CacheHits::new();
     match action {
-        TimerAction::Current => current(json, client).await,
+        TimerAction::Current => current(json, client, &hits).await,
         TimerAction::Start {
             description,
             project,
@@ -41,7 +42,7 @@ async fn run(
             tags,
             billable,
         } => {
-            let wid = resolve_workspace_id(client, workspace).await?;
+            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
             start(
                 json,
                 wid,
@@ -51,19 +52,28 @@ async fn run(
                 tags,
                 billable,
                 client,
+                &hits,
             )
             .await
         }
-        TimerAction::Stop => stop(json, workspace, client).await,
+        TimerAction::Stop => stop(json, workspace, client, &hits).await,
     }
 }
 
-async fn current(json: bool, client: &(impl ApiClient + ?Sized)) -> Result<()> {
+async fn current(
+    json: bool,
+    client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
+) -> Result<()> {
     match client.get_current_timer().await? {
-        Some(entry) => output::print_result(&entry, json),
+        Some(entry) => output::print_result(&entry, json, hits),
         None => {
-            println!("{}", "No running timer".yellow());
-            Ok(())
+            if json {
+                output::print_null(json, hits)
+            } else {
+                println!("{}", "No running timer".yellow());
+                Ok(())
+            }
         }
     }
 }
@@ -78,6 +88,7 @@ async fn start(
     tags: Option<Vec<String>>,
     billable: bool,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let params = CreateTimeEntryParams {
         description,
@@ -88,7 +99,7 @@ async fn start(
     };
     let entry = client.create_time_entry(workspace_id, &params).await?;
     if json {
-        output::print_result(&entry, true)?;
+        output::print_result(&entry, true, hits)?;
     } else {
         println!("{} Timer started", "✓".green().bold());
         println!("{entry}");
@@ -100,6 +111,7 @@ async fn stop(
     json: bool,
     workspace: Option<i64>,
     client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
 ) -> Result<()> {
     let current = client
         .get_current_timer()
@@ -110,7 +122,7 @@ async fn stop(
     let entry = client.stop_time_entry(wid, current.id).await?;
 
     if json {
-        output::print_result(&entry, true)?;
+        output::print_result(&entry, true, hits)?;
     } else {
         println!("{} Timer stopped", "✓".green().bold());
         println!("{entry}");

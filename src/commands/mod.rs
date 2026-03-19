@@ -7,12 +7,29 @@ pub mod tags;
 pub mod timer;
 
 use chrono::TimeDelta;
-use colored::Colorize;
 
 use crate::api::client::ApiClient;
 use crate::cache::FileCache;
 use crate::error::Result;
 use crate::models::User;
+
+/// キャッシュヒットしたエンティティ名を収集する
+#[derive(Default, Debug)]
+pub struct CacheHits(Vec<String>);
+
+impl CacheHits {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn record(&mut self, entity: &str) {
+        self.0.push(entity.to_string());
+    }
+
+    pub fn entities(&self) -> &[String] {
+        &self.0
+    }
+}
 
 fn get_cache() -> Option<FileCache> {
     FileCache::default_with_ttl(TimeDelta::hours(72)).ok()
@@ -21,14 +38,16 @@ fn get_cache() -> Option<FileCache> {
 pub async fn resolve_workspace_id(
     client: &(impl ApiClient + ?Sized),
     workspace_override: Option<i64>,
+    hits: &mut CacheHits,
 ) -> Result<i64> {
-    resolve_workspace_id_inner(client, workspace_override, &get_cache()).await
+    resolve_workspace_id_inner(client, workspace_override, &get_cache(), hits).await
 }
 
 async fn resolve_workspace_id_inner(
     client: &(impl ApiClient + ?Sized),
     workspace_override: Option<i64>,
     cache: &Option<FileCache>,
+    hits: &mut CacheHits,
 ) -> Result<i64> {
     if let Some(id) = workspace_override {
         return Ok(id);
@@ -37,7 +56,7 @@ async fn resolve_workspace_id_inner(
     // Try cache first
     if let Some(cache) = cache {
         if let Some(user) = cache.get::<User>("user") {
-            print_cache_hit("user");
+            hits.record("user");
             return Ok(user.default_workspace_id);
         }
     }
@@ -68,10 +87,6 @@ pub fn cache_get<T: serde::de::DeserializeOwned>(key: &str) -> Option<T> {
     get_cache().and_then(|cache| cache.get(key))
 }
 
-pub fn print_cache_hit(entity: &str) {
-    println!("{}", format!("(cached: {entity})").dimmed());
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,10 +95,12 @@ mod tests {
     #[tokio::test]
     async fn resolve_workspace_id_uses_override() {
         let mock = MockApiClient::new();
-        let result = resolve_workspace_id_inner(&mock, Some(42), &None)
+        let mut hits = CacheHits::new();
+        let result = resolve_workspace_id_inner(&mock, Some(42), &None, &mut hits)
             .await
             .unwrap();
         assert_eq!(result, 42);
+        assert!(hits.entities().is_empty());
     }
 
     #[tokio::test]
@@ -97,9 +114,11 @@ mod tests {
                 timezone: "UTC".to_string(),
             })
         });
-        let result = resolve_workspace_id_inner(&mock, None, &None)
+        let mut hits = CacheHits::new();
+        let result = resolve_workspace_id_inner(&mock, None, &None, &mut hits)
             .await
             .unwrap();
         assert_eq!(result, 99);
+        assert!(hits.entities().is_empty());
     }
 }
