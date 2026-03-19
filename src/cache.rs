@@ -56,7 +56,6 @@ struct CacheEntry<T> {
 // Pure functions
 // ---------------------------------------------------------------------------
 
-
 fn is_expired(cached_at: DateTime<Utc>, ttl: TimeDelta, now: DateTime<Utc>) -> bool {
     now.signed_duration_since(cached_at) >= ttl
 }
@@ -77,12 +76,10 @@ fn cache_file_path(cache_dir: &Path, key: &str) -> Result<PathBuf, CacheError> {
 // FileCache
 // ---------------------------------------------------------------------------
 
-
 pub struct FileCache {
     cache_dir: PathBuf,
     default_ttl: TimeDelta,
 }
-
 
 impl FileCache {
     pub fn new(cache_dir: PathBuf, default_ttl: TimeDelta) -> Self {

@@ -62,11 +62,7 @@ pub fn invalidate_cache(key: &str) {
     }
 }
 
-pub async fn cached_fetch<T, Fut>(
-    key: &str,
-    hits: &mut CacheHits,
-    fetch: Fut,
-) -> Result<T>
+pub async fn cached_fetch<T, Fut>(key: &str, hits: &mut CacheHits, fetch: Fut) -> Result<T>
 where
     T: serde::Serialize + serde::de::DeserializeOwned,
     Fut: std::future::Future<Output = Result<T>>,

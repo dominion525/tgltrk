@@ -150,10 +150,7 @@ impl TogglClient {
         self.send(self.http.patch(url).json(body)).await
     }
 
-    async fn check_response(
-        &self,
-        response: reqwest::Response,
-    ) -> Result<reqwest::Response> {
+    async fn check_response(&self, response: reqwest::Response) -> Result<reqwest::Response> {
         let status = response.status();
         if !status.is_success() {
             let body = response.text().await.unwrap_or_default();

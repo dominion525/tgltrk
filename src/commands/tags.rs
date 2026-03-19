@@ -1,6 +1,8 @@
 use crate::api::client::ApiClient;
 use crate::cli::TagsAction;
-use crate::commands::{build_client, cached_fetch, invalidate_cache, resolve_workspace_id, CacheHits};
+use crate::commands::{
+    CacheHits, build_client, cached_fetch, invalidate_cache, resolve_workspace_id,
+};
 use crate::error::Result;
 use crate::output;
 

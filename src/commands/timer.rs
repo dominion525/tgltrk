@@ -2,7 +2,7 @@ use colored::Colorize;
 
 use crate::api::client::{ApiClient, CreateTimeEntryParams};
 use crate::cli::TimerAction;
-use crate::commands::{build_client, resolve_workspace_id, CacheHits};
+use crate::commands::{CacheHits, build_client, resolve_workspace_id};
 use crate::error::{AppError, Result};
 use crate::output;
 
@@ -54,11 +54,7 @@ async fn run(
     }
 }
 
-async fn current(
-    json: bool,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
-) -> Result<()> {
+async fn current(json: bool, client: &(impl ApiClient + ?Sized), hits: &CacheHits) -> Result<()> {
     match client.get_current_timer().await? {
         Some(entry) => output::print_result(&entry, json, hits),
         None => {

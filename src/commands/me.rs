@@ -1,5 +1,5 @@
 use crate::api::client::ApiClient;
-use crate::commands::{build_client, cached_fetch, CacheHits};
+use crate::commands::{CacheHits, build_client, cached_fetch};
 use crate::error::Result;
 use crate::output;
 

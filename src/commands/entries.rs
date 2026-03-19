@@ -1,6 +1,6 @@
 use crate::api::client::{ApiClient, CreateTimeEntryParams, UpdateTimeEntryParams};
 use crate::cli::EntriesAction;
-use crate::commands::{build_client, resolve_workspace_id, CacheHits};
+use crate::commands::{CacheHits, build_client, resolve_workspace_id};
 use crate::error::Result;
 use crate::output;
 
@@ -40,7 +40,18 @@ async fn run(
             billable,
         } => {
             let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
-            edit(json, wid, id, description, project, tags, billable, client, &hits).await
+            edit(
+                json,
+                wid,
+                id,
+                description,
+                project,
+                tags,
+                billable,
+                client,
+                &hits,
+            )
+            .await
         }
         EntriesAction::Delete { id } => {
             let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
