@@ -74,11 +74,17 @@ impl CredentialStore for EnvStore {
     }
 }
 
-pub fn get_store() -> Box<dyn CredentialStore> {
+pub fn get_store() -> Result<Box<dyn CredentialStore>> {
     if let Ok(token) = std::env::var(ENV_API_TOKEN) {
-        return Box::new(EnvStore { token });
+        return Ok(Box::new(EnvStore { token }));
     }
-    Box::new(KeyringStore::new().unwrap_or_else(|e| panic!("Failed to initialize keyring: {e}")))
+    let store = KeyringStore::new().map_err(|e| {
+        AppError::Keyring(format!(
+            "Failed to initialize keyring: {e}. \
+             Set the {ENV_API_TOKEN} environment variable as an alternative."
+        ))
+    })?;
+    Ok(Box::new(store))
 }
 
 #[cfg(test)]
@@ -117,7 +123,7 @@ mod tests {
         let _guard = crate::ENV_MUTEX.lock().await;
         // SAFETY: env var access serialized by ENV_MUTEX
         unsafe { std::env::set_var("TOGGL_API_TOKEN", "my_test_token") };
-        let store = get_store();
+        let store = get_store().unwrap();
         let cred = store.read().unwrap();
         assert_eq!(cred.api_token, "my_test_token");
         // SAFETY: env var access serialized by ENV_MUTEX

@@ -3,11 +3,21 @@ use colored::Colorize;
 use crate::api::client::{ApiClient, TogglClient};
 use crate::cli::AuthAction;
 use crate::credentials::{self, CredentialStore};
-use crate::error::Result;
+use crate::error::{AppError, Result};
 
 pub async fn execute(action: AuthAction) -> Result<()> {
     match action {
-        AuthAction::Login { token } => login(&token).await,
+        AuthAction::Login { token } => {
+            let token = match token {
+                Some(t) => t,
+                None => {
+                    eprint!("API token: ");
+                    rpassword::read_password()
+                        .map_err(|e| AppError::Auth(format!("Failed to read token: {e}")))?
+                }
+            };
+            login(&token).await
+        }
         AuthAction::Clear => clear(),
         AuthAction::Status => status().await,
     }
@@ -40,7 +50,7 @@ async fn login(token: &str) -> Result<()> {
 }
 
 pub async fn login_with_base_url(token: &str, base_url: Option<&str>) -> Result<()> {
-    let store = credentials::get_store();
+    let store = credentials::get_store()?;
     let client = match base_url {
         Some(url) => TogglClient::new_with_base_url(token, url)?,
         None => TogglClient::new(token)?,
@@ -49,7 +59,7 @@ pub async fn login_with_base_url(token: &str, base_url: Option<&str>) -> Result<
 }
 
 fn clear() -> Result<()> {
-    let store = credentials::get_store();
+    let store = credentials::get_store()?;
     clear_inner(store.as_ref())
 }
 
@@ -69,7 +79,7 @@ async fn status() -> Result<()> {
 }
 
 pub async fn status_with_base_url(base_url: Option<&str>) -> Result<()> {
-    let store = credentials::get_store();
+    let store = credentials::get_store()?;
     let cred = store.read()?;
     let client = match base_url {
         Some(url) => TogglClient::new_with_base_url(&cred.api_token, url)?,

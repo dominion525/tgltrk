@@ -3,7 +3,9 @@ use reqwest::{Client, RequestBuilder, header};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::constants::API_BASE_URL;
+use std::time::Duration;
+
+use crate::constants::{API_BASE_URL, API_TIMEOUT_SECS};
 use crate::error::{AppError, Result};
 use crate::models::{Project, Tag, TimeEntry, User};
 
@@ -116,6 +118,7 @@ impl TogglClient {
 
         let http = Client::builder()
             .default_headers(headers)
+            .timeout(Duration::from_secs(API_TIMEOUT_SECS))
             .build()
             .map_err(|e| AppError::Api(format!("Failed to build HTTP client: {e}")))?;
 

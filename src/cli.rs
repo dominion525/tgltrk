@@ -55,8 +55,8 @@ pub enum Command {
 pub enum AuthAction {
     /// Save API token
     Login {
-        /// Toggl Track API token
-        token: String,
+        /// Toggl Track API token (if omitted, reads from stdin)
+        token: Option<String>,
     },
     /// Remove saved API token
     Clear,
