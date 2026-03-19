@@ -50,6 +50,12 @@ impl From<keyring::Error> for AppError {
     }
 }
 
+impl From<crate::cache::CacheError> for AppError {
+    fn from(e: crate::cache::CacheError) -> Self {
+        AppError::Cache(e.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -116,6 +122,17 @@ mod tests {
         match &app_err {
             AppError::Keyring(_) => {}
             other => panic!("expected Keyring, got: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn from_cache_error() {
+        use crate::cache::CacheError;
+        let cache_err = CacheError::InvalidKey("bad".to_string());
+        let app_err = AppError::from(cache_err);
+        match &app_err {
+            AppError::Cache(msg) => assert!(msg.contains("Invalid cache key"), "got: {msg}"),
+            other => panic!("expected Cache, got: {other:?}"),
         }
     }
 

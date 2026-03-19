@@ -2,14 +2,14 @@ use chrono::TimeDelta;
 use colored::Colorize;
 
 use crate::cache::FileCache;
-use crate::error::{AppError, Result};
+use crate::error::Result;
 
 fn get_cache() -> Result<FileCache> {
-    FileCache::default_with_ttl(TimeDelta::hours(72)).map_err(|e| AppError::Cache(e.to_string()))
+    Ok(FileCache::default_with_ttl(TimeDelta::hours(72))?)
 }
 
 fn clear_inner(cache: &FileCache) -> Result<()> {
-    cache.clear().map_err(|e| AppError::Cache(e.to_string()))?;
+    cache.clear()?;
     println!("{} Cache cleared", "✓".green().bold());
     Ok(())
 }
