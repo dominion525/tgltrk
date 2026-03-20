@@ -139,12 +139,16 @@ pub struct UpdateTimeEntryRequest {
 pub struct CreateProjectRequest {
     pub name: String,
     pub active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct UpdateProjectRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub client_id: Option<i64>,
 }
 
 #[derive(Debug, Deserialize)]

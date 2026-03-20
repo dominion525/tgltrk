@@ -208,6 +208,9 @@ pub enum ProjectsAction {
     Create {
         /// Project name
         name: String,
+        /// Client ID
+        #[arg(long)]
+        client: Option<i64>,
     },
     /// Update a project
     Update {
@@ -216,6 +219,9 @@ pub enum ProjectsAction {
         /// New name
         #[arg(long)]
         name: Option<String>,
+        /// Client ID
+        #[arg(long)]
+        client: Option<i64>,
     },
     /// Delete a project
     Delete {

@@ -35,10 +35,14 @@ async fn run(
     match action {
         ProjectsAction::List => list(json, wid, client, &mut hits).await,
         ProjectsAction::Get { id } => get(json, wid, ProjectId(id), client, &hits).await,
-        ProjectsAction::Create { name } => create(json, wid, &name, client, &hits).await,
-        ProjectsAction::Update { id, name } => {
-            update(json, wid, ProjectId(id), name, client, &hits).await
+        ProjectsAction::Create { name, client: cid } => {
+            create(json, wid, &name, cid, client, &hits).await
         }
+        ProjectsAction::Update {
+            id,
+            name,
+            client: cid,
+        } => update(json, wid, ProjectId(id), name, cid, client, &hits).await,
         ProjectsAction::Delete { id } => delete(json, wid, ProjectId(id), client, &hits).await,
     }
 }
@@ -87,11 +91,13 @@ async fn create(
     json: bool,
     wid: WorkspaceId,
     name: &str,
+    client_id: Option<i64>,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
     let params = CreateProjectParams {
         name: name.to_string(),
+        client_id,
     };
     let project = client.create_project(wid, &params).await?;
     invalidate_cache(&format!("projects_{wid}"));
@@ -109,10 +115,11 @@ async fn update(
     wid: WorkspaceId,
     id: ProjectId,
     name: Option<String>,
+    client_id: Option<i64>,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
-    let params = UpdateProjectParams { name };
+    let params = UpdateProjectParams { name, client_id };
     let project = client.update_project(wid, id, &params).await?;
     invalidate_cache(&format!("projects_{wid}"));
     output::print_success(
@@ -210,6 +217,7 @@ mod tests {
         let result = run(
             ProjectsAction::Create {
                 name: "New".to_string(),
+                client: None,
             },
             false,
             Some(1),
@@ -227,6 +235,7 @@ mod tests {
         let result = run(
             ProjectsAction::Create {
                 name: "New".to_string(),
+                client: None,
             },
             true,
             Some(1),
@@ -246,6 +255,7 @@ mod tests {
             ProjectsAction::Update {
                 id: 10,
                 name: Some("Renamed".to_string()),
+                client: None,
             },
             false,
             Some(1),
@@ -264,6 +274,7 @@ mod tests {
             ProjectsAction::Update {
                 id: 10,
                 name: Some("Renamed".to_string()),
+                client: None,
             },
             true,
             Some(1),

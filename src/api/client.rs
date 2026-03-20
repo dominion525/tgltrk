@@ -61,10 +61,12 @@ pub struct UpdateTimeEntryParams {
 
 pub struct CreateProjectParams {
     pub name: String,
+    pub client_id: Option<i64>,
 }
 
 pub struct UpdateProjectParams {
     pub name: Option<String>,
+    pub client_id: Option<i64>,
 }
 
 #[cfg_attr(test, automock)]
@@ -372,6 +374,7 @@ impl ApiClient for TogglClient {
         let body = CreateProjectRequest {
             name: params.name.clone(),
             active: true,
+            client_id: params.client_id,
         };
         let wire: WireProject = self.post(&url, &body).await?;
         Ok(wire.into())
@@ -389,6 +392,7 @@ impl ApiClient for TogglClient {
         );
         let body = UpdateProjectRequest {
             name: params.name.clone(),
+            client_id: params.client_id,
         };
         let wire: WireProject = self.put(&url, &body).await?;
         Ok(wire.into())
@@ -806,6 +810,7 @@ mod tests {
 
         let params = CreateProjectParams {
             name: "New Project".to_string(),
+            client_id: None,
         };
         let project = client
             .create_project(WorkspaceId(1), &params)
@@ -825,6 +830,7 @@ mod tests {
 
         let params = UpdateProjectParams {
             name: Some("Renamed".to_string()),
+            client_id: None,
         };
         let project = client
             .update_project(WorkspaceId(1), ProjectId(10), &params)
