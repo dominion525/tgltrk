@@ -48,7 +48,7 @@ async fn list(
 ) -> Result<()> {
     let key = format!("projects_{wid}");
     let projects = cached_fetch(&key, hits, client.list_projects(wid)).await?;
-    output::print_list(&projects, json, hits)
+    output::print_list(&mut std::io::stdout(), &projects, json, hits)
 }
 
 async fn get(
@@ -59,7 +59,7 @@ async fn get(
     hits: &CacheHits,
 ) -> Result<()> {
     let project = client.get_project(wid, id).await?;
-    output::print_result(&project, json, hits)
+    output::print_result(&mut std::io::stdout(), &project, json, hits)
 }
 
 async fn create(
@@ -74,7 +74,13 @@ async fn create(
     };
     let project = client.create_project(wid, &params).await?;
     invalidate_cache(&format!("projects_{wid}"));
-    output::print_success(&project, json, "Project created", hits)
+    output::print_success(
+        &mut std::io::stdout(),
+        &project,
+        json,
+        "Project created",
+        hits,
+    )
 }
 
 async fn update(
@@ -88,7 +94,13 @@ async fn update(
     let params = UpdateProjectParams { name };
     let project = client.update_project(wid, id, &params).await?;
     invalidate_cache(&format!("projects_{wid}"));
-    output::print_success(&project, json, "Project updated", hits)
+    output::print_success(
+        &mut std::io::stdout(),
+        &project,
+        json,
+        "Project updated",
+        hits,
+    )
 }
 
 async fn delete(
@@ -100,7 +112,12 @@ async fn delete(
 ) -> Result<()> {
     client.delete_project(wid, id).await?;
     invalidate_cache(&format!("projects_{wid}"));
-    output::print_deleted(json, &format!("Project #{id} deleted"), hits)
+    output::print_deleted(
+        &mut std::io::stdout(),
+        json,
+        &format!("Project #{id} deleted"),
+        hits,
+    )
 }
 
 #[cfg(test)]

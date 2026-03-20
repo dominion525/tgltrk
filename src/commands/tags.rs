@@ -45,7 +45,7 @@ async fn list(
 ) -> Result<()> {
     let key = format!("tags_{wid}");
     let tags = cached_fetch(&key, hits, client.list_tags(wid)).await?;
-    output::print_list(&tags, json, hits)
+    output::print_list(&mut std::io::stdout(), &tags, json, hits)
 }
 
 async fn create(
@@ -57,7 +57,7 @@ async fn create(
 ) -> Result<()> {
     let tag = client.create_tag(wid, name).await?;
     invalidate_cache(&format!("tags_{wid}"));
-    output::print_success(&tag, json, "Tag created", hits)
+    output::print_success(&mut std::io::stdout(), &tag, json, "Tag created", hits)
 }
 
 async fn update(
@@ -70,7 +70,7 @@ async fn update(
 ) -> Result<()> {
     let tag = client.update_tag(wid, id, name).await?;
     invalidate_cache(&format!("tags_{wid}"));
-    output::print_success(&tag, json, "Tag updated", hits)
+    output::print_success(&mut std::io::stdout(), &tag, json, "Tag updated", hits)
 }
 
 async fn delete(
@@ -82,7 +82,12 @@ async fn delete(
 ) -> Result<()> {
     client.delete_tag(wid, id).await?;
     invalidate_cache(&format!("tags_{wid}"));
-    output::print_deleted(json, &format!("Tag #{id} deleted"), hits)
+    output::print_deleted(
+        &mut std::io::stdout(),
+        json,
+        &format!("Tag #{id} deleted"),
+        hits,
+    )
 }
 
 #[cfg(test)]

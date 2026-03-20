@@ -76,7 +76,7 @@ async fn list(
     if let Some(n) = count {
         entries.truncate(n);
     }
-    output::print_list(&entries, json, hits)
+    output::print_list(&mut std::io::stdout(), &entries, json, hits)
 }
 
 async fn get(
@@ -86,7 +86,7 @@ async fn get(
     hits: &CacheHits,
 ) -> Result<()> {
     let entry = client.get_time_entry(id).await?;
-    output::print_result(&entry, json, hits)
+    output::print_result(&mut std::io::stdout(), &entry, json, hits)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -110,7 +110,7 @@ async fn edit(
     let entry = client
         .update_time_entry(workspace_id, entry_id, &params)
         .await?;
-    output::print_success(&entry, json, "Entry updated", hits)
+    output::print_success(&mut std::io::stdout(), &entry, json, "Entry updated", hits)
 }
 
 async fn delete(
@@ -121,7 +121,12 @@ async fn delete(
     hits: &CacheHits,
 ) -> Result<()> {
     client.delete_time_entry(workspace_id, entry_id).await?;
-    output::print_deleted(json, &format!("Entry #{entry_id} deleted"), hits)
+    output::print_deleted(
+        &mut std::io::stdout(),
+        json,
+        &format!("Entry #{entry_id} deleted"),
+        hits,
+    )
 }
 
 async fn continue_entry(
@@ -135,7 +140,13 @@ async fn continue_entry(
     let entry = client
         .create_time_entry(source.workspace_id, &params)
         .await?;
-    output::print_success(&entry, json, "Timer continued", hits)
+    output::print_success(
+        &mut std::io::stdout(),
+        &entry,
+        json,
+        "Timer continued",
+        hits,
+    )
 }
 
 #[cfg(test)]

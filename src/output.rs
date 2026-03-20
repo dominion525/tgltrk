@@ -4,6 +4,7 @@ use crate::commands::CacheHits;
 use crate::error::Result;
 use serde::Serialize;
 use std::fmt;
+use std::io::Write;
 
 #[derive(Serialize)]
 pub struct JsonEnvelope<T: Serialize> {
@@ -25,80 +26,89 @@ fn make_envelope<T: Serialize>(data: T, hits: &CacheHits) -> JsonEnvelope<T> {
     }
 }
 
-fn print_cache_hits_text(hits: &CacheHits) {
+fn write_cache_hits_text(w: &mut impl Write, hits: &CacheHits) -> std::io::Result<()> {
     for entity in hits.entities() {
-        println!("{}", format!("(cached: {entity})").dimmed());
+        writeln!(w, "{}", format!("(cached: {entity})").dimmed())?;
     }
+    Ok(())
 }
 
 pub fn print_result<T: Serialize + fmt::Display>(
+    w: &mut impl Write,
     value: &T,
     json: bool,
     hits: &CacheHits,
 ) -> Result<()> {
     if json {
-        print_json(&make_envelope(value, hits))
+        write_json(w, &make_envelope(value, hits))
     } else {
-        print_cache_hits_text(hits);
-        println!("{value}");
+        write_cache_hits_text(w, hits)?;
+        writeln!(w, "{value}")?;
         Ok(())
     }
 }
 
 pub fn print_list<T: Serialize + fmt::Display>(
+    w: &mut impl Write,
     items: &[T],
     json: bool,
     hits: &CacheHits,
 ) -> Result<()> {
     if json {
-        print_json(&make_envelope(items, hits))
+        write_json(w, &make_envelope(items, hits))
     } else {
-        print_cache_hits_text(hits);
+        write_cache_hits_text(w, hits)?;
         for item in items {
-            println!("{item}");
+            writeln!(w, "{item}")?;
         }
         Ok(())
     }
 }
 
 pub fn print_success<T: Serialize + fmt::Display>(
+    w: &mut impl Write,
     value: &T,
     json: bool,
     message: &str,
     hits: &CacheHits,
 ) -> Result<()> {
     if json {
-        print_json(&make_envelope(value, hits))
+        write_json(w, &make_envelope(value, hits))
     } else {
-        print_cache_hits_text(hits);
-        println!("{} {message}", "✓".green().bold());
-        println!("{value}");
+        write_cache_hits_text(w, hits)?;
+        writeln!(w, "{} {message}", "✓".green().bold())?;
+        writeln!(w, "{value}")?;
         Ok(())
     }
 }
 
-pub fn print_deleted(json: bool, message: &str, hits: &CacheHits) -> Result<()> {
+pub fn print_deleted(
+    w: &mut impl Write,
+    json: bool,
+    message: &str,
+    hits: &CacheHits,
+) -> Result<()> {
     if json {
-        print_json(&make_envelope(Option::<()>::None, hits))
+        write_json(w, &make_envelope(Option::<()>::None, hits))
     } else {
-        print_cache_hits_text(hits);
-        println!("{} {message}", "✓".green().bold());
+        write_cache_hits_text(w, hits)?;
+        writeln!(w, "{} {message}", "✓".green().bold())?;
         Ok(())
     }
 }
 
-pub fn print_null(json: bool, hits: &CacheHits) -> Result<()> {
+pub fn print_null(w: &mut impl Write, json: bool, hits: &CacheHits) -> Result<()> {
     if json {
-        print_json(&make_envelope(Option::<()>::None, hits))
+        write_json(w, &make_envelope(Option::<()>::None, hits))
     } else {
-        print_cache_hits_text(hits);
+        write_cache_hits_text(w, hits)?;
         Ok(())
     }
 }
 
-fn print_json<T: Serialize + ?Sized>(value: &T) -> Result<()> {
+fn write_json<T: Serialize + ?Sized>(w: &mut impl Write, value: &T) -> Result<()> {
     let json = serde_json::to_string_pretty(value)?;
-    println!("{json}");
+    writeln!(w, "{json}")?;
     Ok(())
 }
 
@@ -120,14 +130,22 @@ mod tests {
     fn print_result_text_mode() {
         let user = make_user();
         let hits = CacheHits::new();
-        assert!(print_result(&user, false, &hits).is_ok());
+        let mut buf = Vec::new();
+        print_result(&mut buf, &user, false, &hits).unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("Alice"), "got: {output}");
+        assert!(output.contains("a@b.com"), "got: {output}");
     }
 
     #[test]
     fn print_result_json_mode() {
         let user = make_user();
         let hits = CacheHits::new();
-        assert!(print_result(&user, true, &hits).is_ok());
+        let mut buf = Vec::new();
+        print_result(&mut buf, &user, true, &hits).unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+        assert_eq!(parsed["data"]["email"], "a@b.com");
+        assert_eq!(parsed["data"]["fullname"], "Alice");
     }
 
     #[test]
@@ -145,18 +163,28 @@ mod tests {
             },
         ];
         let hits = CacheHits::new();
-        assert!(print_list(&tags, false, &hits).is_ok());
+        let mut buf = Vec::new();
+        print_list(&mut buf, &tags, false, &hits).unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("#1 a"), "got: {output}");
+        assert!(output.contains("#2 b"), "got: {output}");
     }
 
     #[test]
     fn print_json_serializes() {
-        assert!(print_json(&vec![1, 2, 3]).is_ok());
+        let mut buf = Vec::new();
+        write_json(&mut buf, &vec![1, 2, 3]).unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+        assert_eq!(parsed, serde_json::json!([1, 2, 3]));
     }
 
     #[test]
     fn print_null_json_mode() {
         let hits = CacheHits::new();
-        assert!(print_null(true, &hits).is_ok());
+        let mut buf = Vec::new();
+        print_null(&mut buf, true, &hits).unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+        assert!(parsed["data"].is_null());
     }
 
     #[test]
@@ -187,25 +215,38 @@ mod tests {
     fn print_success_text_mode() {
         let user = make_user();
         let hits = CacheHits::new();
-        assert!(print_success(&user, false, "User fetched", &hits).is_ok());
+        let mut buf = Vec::new();
+        print_success(&mut buf, &user, false, "User fetched", &hits).unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("User fetched"), "got: {output}");
+        assert!(output.contains("Alice"), "got: {output}");
     }
 
     #[test]
     fn print_success_json_mode() {
         let user = make_user();
         let hits = CacheHits::new();
-        assert!(print_success(&user, true, "User fetched", &hits).is_ok());
+        let mut buf = Vec::new();
+        print_success(&mut buf, &user, true, "User fetched", &hits).unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+        assert_eq!(parsed["data"]["fullname"], "Alice");
     }
 
     #[test]
     fn print_deleted_text_mode() {
         let hits = CacheHits::new();
-        assert!(print_deleted(false, "Project #1 deleted", &hits).is_ok());
+        let mut buf = Vec::new();
+        print_deleted(&mut buf, false, "Project #1 deleted", &hits).unwrap();
+        let output = String::from_utf8(buf).unwrap();
+        assert!(output.contains("Project #1 deleted"), "got: {output}");
     }
 
     #[test]
     fn print_deleted_json_mode() {
         let hits = CacheHits::new();
-        assert!(print_deleted(true, "Project #1 deleted", &hits).is_ok());
+        let mut buf = Vec::new();
+        print_deleted(&mut buf, true, "Project #1 deleted", &hits).unwrap();
+        let parsed: serde_json::Value = serde_json::from_slice(&buf).unwrap();
+        assert!(parsed["data"].is_null());
     }
 }

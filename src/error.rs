@@ -10,6 +10,7 @@ pub enum AppError {
     Auth(String),
     Keyring(String),
     Cache(String),
+    Io(String),
     NotFound(String),
     InvalidInput(String),
 }
@@ -24,6 +25,7 @@ impl fmt::Display for AppError {
             AppError::Auth(msg) => write!(f, "Authentication error: {msg}"),
             AppError::Keyring(msg) => write!(f, "Keyring error: {msg}"),
             AppError::Cache(msg) => write!(f, "Cache error: {msg}"),
+            AppError::Io(msg) => write!(f, "IO error: {msg}"),
             AppError::NotFound(msg) => write!(f, "Not found: {msg}"),
             AppError::InvalidInput(msg) => write!(f, "Invalid input: {msg}"),
         }
@@ -53,6 +55,12 @@ impl From<keyring::Error> for AppError {
 impl From<crate::cache::CacheError> for AppError {
     fn from(e: crate::cache::CacheError) -> Self {
         AppError::Cache(e.to_string())
+    }
+}
+
+impl From<std::io::Error> for AppError {
+    fn from(e: std::io::Error) -> Self {
+        AppError::Io(e.to_string())
     }
 }
 

@@ -19,7 +19,7 @@ pub async fn execute_with_base_url(
 async fn run(json: bool, client: &(impl ApiClient + ?Sized)) -> Result<()> {
     let mut hits = CacheHits::new();
     let user = cached_fetch("user", &mut hits, client.get_me()).await?;
-    output::print_result(&user, json, &hits)
+    output::print_result(&mut std::io::stdout(), &user, json, &hits)
 }
 
 #[cfg(test)]

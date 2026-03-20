@@ -57,10 +57,10 @@ async fn run(
 
 async fn current(json: bool, client: &(impl ApiClient + ?Sized), hits: &CacheHits) -> Result<()> {
     match client.get_current_timer().await? {
-        Some(entry) => output::print_result(&entry, json, hits),
+        Some(entry) => output::print_result(&mut std::io::stdout(), &entry, json, hits),
         None => {
             if json {
-                output::print_null(json, hits)
+                output::print_null(&mut std::io::stdout(), json, hits)
             } else {
                 println!("{}", "No running timer".yellow());
                 Ok(())
@@ -89,7 +89,7 @@ async fn start(
         billable,
     };
     let entry = client.create_time_entry(workspace_id, &params).await?;
-    output::print_success(&entry, json, "Timer started", hits)
+    output::print_success(&mut std::io::stdout(), &entry, json, "Timer started", hits)
 }
 
 async fn stop(
@@ -105,7 +105,7 @@ async fn stop(
 
     let wid = workspace.map(WorkspaceId).unwrap_or(current.workspace_id);
     let entry = client.stop_time_entry(wid, current.id).await?;
-    output::print_success(&entry, json, "Timer stopped", hits)
+    output::print_success(&mut std::io::stdout(), &entry, json, "Timer stopped", hits)
 }
 
 #[cfg(test)]
