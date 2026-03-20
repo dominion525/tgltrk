@@ -59,12 +59,22 @@ tgltrk entries list -n 5
 tgltrk entries continue ENTRY_ID
 ```
 
+### Creating a past entry
+
+Create a completed entry with specific start/stop times:
+
+```
+tgltrk entries create --start "2024-01-15 09:00" --stop "2024-01-15 10:30" -d "description" -p PROJECT_ID -t tag1,tag2
+```
+
+Use `--duration` instead of `--stop` (e.g. `--duration "1h30m"`, `--duration "90m"`).
+
 ### Editing an entry
 
 Only specified fields are updated. All options are optional.
 
 ```
-tgltrk entries edit ENTRY_ID [-d "description"] [-p PROJECT_ID] [-t tag1,tag2] [-b true|false]
+tgltrk entries edit ENTRY_ID [-d "description"] [-p PROJECT_ID] [-t tag1,tag2] [-b true|false] [--start "..."] [--stop "..."] [--duration "..."]
 ```
 
 ## Quick Reference
@@ -76,8 +86,11 @@ tgltrk entries edit ENTRY_ID [-d "description"] [-p PROJECT_ID] [-t tag1,tag2] [
 | Stop timer                 | `tgltrk timer stop`                                   |
 | List entries               | `tgltrk entries list -n 10`                            |
 | Filter by date             | `tgltrk entries list --since 2024-01-01 --until 2024-01-31` |
+| Create past entry          | `tgltrk entries create --start "..." --stop "..." -d "desc"` |
+| Create with duration       | `tgltrk entries create --start "..." --duration "1h30m" -d "desc"` |
 | Continue entry             | `tgltrk entries continue ENTRY_ID`                     |
 | Edit entry                 | `tgltrk entries edit ENTRY_ID -d "new desc"`           |
+| Edit entry time            | `tgltrk entries edit ENTRY_ID --start "..." --stop "..."` |
 | Delete entry               | `tgltrk entries delete ENTRY_ID`                       |
 | List projects              | `tgltrk projects list`                                 |
 | Create project             | `tgltrk projects create "name"`                        |

@@ -59,12 +59,22 @@ tgltrk entries list -n 5
 tgltrk entries continue ENTRY_ID
 ```
 
+### 過去のエントリを作成する
+
+開始・終了時刻を指定して完了済みエントリを作成する:
+
+```
+tgltrk entries create --start "2024-01-15 09:00" --stop "2024-01-15 10:30" -d "説明" -p PROJECT_ID -t tag1,tag2
+```
+
+`--stop` の代わりに `--duration` も使える（例: `--duration "1h30m"`, `--duration "90m"`）。
+
 ### エントリを修正する
 
 指定したフィールドだけ更新される。全オプション任意。
 
 ```
-tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b true|false]
+tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b true|false] [--start "..."] [--stop "..."] [--duration "..."]
 ```
 
 ## クイックリファレンス
@@ -76,8 +86,11 @@ tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b tr
 | タイマー停止               | `tgltrk timer stop`                                   |
 | エントリ一覧               | `tgltrk entries list -n 10`                           |
 | 日付フィルタ               | `tgltrk entries list --since 2024-01-01 --until 2024-01-31` |
+| 過去エントリ作成           | `tgltrk entries create --start "..." --stop "..." -d "説明"` |
+| duration で作成            | `tgltrk entries create --start "..." --duration "1h30m" -d "説明"` |
 | エントリ再開               | `tgltrk entries continue ENTRY_ID`                    |
 | エントリ編集               | `tgltrk entries edit ENTRY_ID -d "新しい説明"`        |
+| 時刻修正                   | `tgltrk entries edit ENTRY_ID --start "..." --stop "..."` |
 | エントリ削除               | `tgltrk entries delete ENTRY_ID`                      |
 | プロジェクト一覧           | `tgltrk projects list`                                |
 | プロジェクト作成           | `tgltrk projects create "名前"`                       |

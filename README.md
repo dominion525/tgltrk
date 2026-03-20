@@ -82,10 +82,25 @@ $ tgltrk entries list --since 2024-01-01 --until 2024-01-31
 $ tgltrk entries get 12345677
 #12345677 Weekly meeting 01:00:00
 
+# Create an entry with specific times
+$ tgltrk entries create --start "2024-01-15 09:00" --stop "2024-01-15 10:30" -d "Morning meeting"
+✓ Entry created
+#12345678 Morning meeting 01:30:00
+
+# Create with duration instead of stop time
+$ tgltrk entries create --start "2024-01-15 14:00" --duration "2h" -d "Coding session"
+✓ Entry created
+#12345679 Coding session 02:00:00
+
 # Edit an entry
 $ tgltrk entries edit 12345677 -d "Standup meeting" -b true
 ✓ Entry updated
 #12345677 Standup meeting 01:00:00
+
+# Edit start/stop time
+$ tgltrk entries edit 12345677 --start "2024-01-15 09:30" --duration "45m"
+✓ Entry updated
+#12345677 Standup meeting 00:45:00
 
 # Delete an entry
 $ tgltrk entries delete 12345677
@@ -176,7 +191,7 @@ API tokens are stored in the OS native keyring (macOS Keychain / Windows Credent
 
 ## Limitations
 
-- **Read-only for time entries**: listing and getting entries is supported, but bulk operations (e.g., batch delete) are not
+- **No bulk operations**: batch delete or batch edit of multiple entries is not supported
 - **No reporting**: Toggl Track's reporting endpoints (Summary, Detailed, Weekly) are not supported
 - **No workspace management**: workspaces cannot be created or modified; `--workspace` only selects an existing one
 - **Paid features**: features exclusive to paid Toggl Track plans (e.g., project templates, time estimates, required fields) are not supported

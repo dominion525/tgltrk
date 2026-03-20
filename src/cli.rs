@@ -8,7 +8,12 @@ fn parse_date(s: &str) -> Result<String, String> {
 }
 
 #[derive(Parser)]
-#[command(name = "tgltrk", about = "Toggl Track CLI", version)]
+#[command(
+    name = "tgltrk",
+    about = "Toggl Track CLI",
+    version,
+    after_help = "AI agents: run `tgltrk --help-skill` for structured usage instructions."
+)]
 pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,
