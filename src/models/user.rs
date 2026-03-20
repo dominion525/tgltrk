@@ -18,6 +18,18 @@ pub struct User {
     pub timezone: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Workspace {
+    pub id: WorkspaceId,
+    pub name: String,
+}
+
+impl fmt::Display for Workspace {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "#{} {}", self.id, self.name)
+    }
+}
+
 impl fmt::Display for User {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         writeln!(f, "Name:      {}", self.fullname)?;

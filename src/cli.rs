@@ -65,6 +65,11 @@ pub enum Command {
         #[command(subcommand)]
         action: ClientsAction,
     },
+    /// Manage workspaces
+    Workspaces {
+        #[command(subcommand)]
+        action: WorkspacesAction,
+    },
     /// Manage cache
     Cache {
         #[command(subcommand)]
@@ -276,6 +281,12 @@ pub enum ClientsAction {
         /// Client ID
         id: i64,
     },
+}
+
+#[derive(Subcommand)]
+pub enum WorkspacesAction {
+    /// List all workspaces
+    List,
 }
 
 #[derive(Subcommand)]

@@ -33,6 +33,7 @@ pub async fn run_cli(cli: Cli) -> error::Result<()> {
         Command::Projects { action } => commands::projects::execute(action, json, workspace).await,
         Command::Tags { action } => commands::tags::execute(action, json, workspace).await,
         Command::Clients { action } => commands::clients::execute(action, json, workspace).await,
+        Command::Workspaces { action } => commands::workspaces::execute(action, json).await,
         Command::Cache { action } => match action {
             CacheAction::Clear => commands::cache_cmd::clear().await,
             CacheAction::Status => commands::cache_cmd::status().await,

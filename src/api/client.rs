@@ -15,7 +15,7 @@ use crate::models::{
 use super::wire::{
     CreateClientRequest, CreateProjectRequest, CreateTagRequest, CreateTimeEntryRequest,
     UpdateClientRequest, UpdateProjectRequest, UpdateTagRequest, UpdateTimeEntryRequest,
-    WireClient, WireProject, WireTag, WireTimeEntry, WireUser,
+    WireClient, WireProject, WireTag, WireTimeEntry, WireUser, WireWorkspace,
 };
 
 #[cfg(test)]
@@ -143,6 +143,7 @@ pub trait ApiClient {
         workspace_id: WorkspaceId,
         client_id: ClientId,
     ) -> Result<()>;
+    async fn list_workspaces(&self) -> Result<Vec<crate::models::Workspace>>;
 }
 
 pub struct TogglClient {
@@ -489,6 +490,12 @@ impl ApiClient for TogglClient {
             self.base_url
         );
         self.delete_request(&url).await
+    }
+
+    async fn list_workspaces(&self) -> Result<Vec<crate::models::Workspace>> {
+        let url = format!("{}/me/workspaces", self.base_url);
+        let wire: Vec<WireWorkspace> = self.get(&url).await?;
+        Ok(wire.into_iter().map(Into::into).collect())
     }
 }
 

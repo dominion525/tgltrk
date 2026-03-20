@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::models::{
     Client, ClientId, Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User,
-    WorkspaceId,
+    Workspace, WorkspaceId,
 };
 
 // --- Response types (API → domain) ---
@@ -95,6 +95,21 @@ impl From<WireTag> for Tag {
         Tag {
             id: TagId(w.id),
             workspace_id: WorkspaceId(w.workspace_id),
+            name: w.name,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WireWorkspace {
+    pub id: i64,
+    pub name: String,
+}
+
+impl From<WireWorkspace> for Workspace {
+    fn from(w: WireWorkspace) -> Self {
+        Workspace {
+            id: WorkspaceId(w.id),
             name: w.name,
         }
     }

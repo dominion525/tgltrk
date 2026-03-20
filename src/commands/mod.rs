@@ -6,6 +6,7 @@ pub mod me;
 pub mod projects;
 pub mod tags;
 pub mod timer;
+pub mod workspaces;
 
 use chrono::TimeDelta;
 
