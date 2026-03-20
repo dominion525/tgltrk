@@ -116,11 +116,12 @@ $ tgltrk entries continue 12345676
 
 ```bash
 $ tgltrk projects list
-#1001 Website Redesign
-#1002 Mobile App
-#1003 API Migration (archived)
+#1001 Website Redesign [Acme Corp]
+#1002 Mobile App [Acme Corp]
+#1003 API Migration [Globex] (archived)
 
-$ tgltrk projects create "New Project"
+# Create a project with a client
+$ tgltrk projects create "New Project" --client 101
 ✓ Project created
 #1004 New Project
 

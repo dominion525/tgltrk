@@ -92,8 +92,9 @@ tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b tr
 | エントリ編集               | `tgltrk entries edit ENTRY_ID -d "新しい説明"`        |
 | 時刻修正                   | `tgltrk entries edit ENTRY_ID --start "..." --stop "..."` |
 | エントリ削除               | `tgltrk entries delete ENTRY_ID`                      |
-| プロジェクト一覧           | `tgltrk projects list`                                |
-| プロジェクト作成           | `tgltrk projects create "名前"`                       |
+| プロジェクト一覧           | `tgltrk projects list`（クライアント名を括弧で表示）  |
+| プロジェクト作成           | `tgltrk projects create "名前" [--client CLIENT_ID]`  |
+| プロジェクト更新           | `tgltrk projects update ID [--name "..."] [--client CLIENT_ID]` |
 | クライアント一覧           | `tgltrk clients list`                                 |
 | クライアント作成           | `tgltrk clients create "名前"`                        |
 | クライアント更新           | `tgltrk clients update CLIENT_ID --name "新しい名前"` |

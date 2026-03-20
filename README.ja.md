@@ -116,11 +116,12 @@ $ tgltrk entries continue 12345676
 
 ```bash
 $ tgltrk projects list
-#1001 ウェブサイトリニューアル
-#1002 モバイルアプリ
-#1003 API移行 (archived)
+#1001 ウェブサイトリニューアル [株式会社A]
+#1002 モバイルアプリ [株式会社A]
+#1003 API移行 [株式会社B] (archived)
 
-$ tgltrk projects create "新プロジェクト"
+# クライアントを指定してプロジェクト作成
+$ tgltrk projects create "新プロジェクト" --client 101
 ✓ Project created
 #1004 新プロジェクト
 

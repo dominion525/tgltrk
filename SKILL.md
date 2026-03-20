@@ -92,8 +92,9 @@ tgltrk entries edit ENTRY_ID [-d "description"] [-p PROJECT_ID] [-t tag1,tag2] [
 | Edit entry                 | `tgltrk entries edit ENTRY_ID -d "new desc"`           |
 | Edit entry time            | `tgltrk entries edit ENTRY_ID --start "..." --stop "..."` |
 | Delete entry               | `tgltrk entries delete ENTRY_ID`                       |
-| List projects              | `tgltrk projects list`                                 |
-| Create project             | `tgltrk projects create "name"`                        |
+| List projects              | `tgltrk projects list`  (shows client name in brackets) |
+| Create project             | `tgltrk projects create "name" [--client CLIENT_ID]`   |
+| Update project             | `tgltrk projects update ID [--name "..."] [--client CLIENT_ID]` |
 | List clients               | `tgltrk clients list`                                  |
 | Create client              | `tgltrk clients create "name"`                         |
 | Update client              | `tgltrk clients update CLIENT_ID --name "new name"`    |
