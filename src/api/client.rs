@@ -7,7 +7,9 @@ use std::time::Duration;
 
 use crate::constants::{API_BASE_URL, API_TIMEOUT_SECS};
 use crate::error::{AppError, Result};
-use crate::models::{Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User};
+use crate::models::{
+    Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User, WorkspaceId,
+};
 
 use super::wire::{
     CreateProjectRequest, CreateTagRequest, CreateTimeEntryRequest, UpdateProjectRequest,
@@ -66,35 +68,48 @@ pub trait ApiClient {
     async fn get_time_entry(&self, entry_id: TimeEntryId) -> Result<TimeEntry>;
     async fn create_time_entry(
         &self,
-        workspace_id: i64,
+        workspace_id: WorkspaceId,
         params: &CreateTimeEntryParams,
     ) -> Result<TimeEntry>;
     async fn update_time_entry(
         &self,
-        workspace_id: i64,
+        workspace_id: WorkspaceId,
         entry_id: TimeEntryId,
         params: &UpdateTimeEntryParams,
     ) -> Result<TimeEntry>;
-    async fn delete_time_entry(&self, workspace_id: i64, entry_id: TimeEntryId) -> Result<()>;
-    async fn stop_time_entry(&self, workspace_id: i64, entry_id: TimeEntryId) -> Result<TimeEntry>;
-    async fn list_projects(&self, workspace_id: i64) -> Result<Vec<Project>>;
-    async fn get_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<Project>;
+    async fn delete_time_entry(
+        &self,
+        workspace_id: WorkspaceId,
+        entry_id: TimeEntryId,
+    ) -> Result<()>;
+    async fn stop_time_entry(
+        &self,
+        workspace_id: WorkspaceId,
+        entry_id: TimeEntryId,
+    ) -> Result<TimeEntry>;
+    async fn list_projects(&self, workspace_id: WorkspaceId) -> Result<Vec<Project>>;
+    async fn get_project(
+        &self,
+        workspace_id: WorkspaceId,
+        project_id: ProjectId,
+    ) -> Result<Project>;
     async fn create_project(
         &self,
-        workspace_id: i64,
+        workspace_id: WorkspaceId,
         params: &CreateProjectParams,
     ) -> Result<Project>;
     async fn update_project(
         &self,
-        workspace_id: i64,
+        workspace_id: WorkspaceId,
         project_id: ProjectId,
         params: &UpdateProjectParams,
     ) -> Result<Project>;
-    async fn delete_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<()>;
-    async fn list_tags(&self, workspace_id: i64) -> Result<Vec<Tag>>;
-    async fn create_tag(&self, workspace_id: i64, name: &str) -> Result<Tag>;
-    async fn update_tag(&self, workspace_id: i64, tag_id: TagId, name: &str) -> Result<Tag>;
-    async fn delete_tag(&self, workspace_id: i64, tag_id: TagId) -> Result<()>;
+    async fn delete_project(&self, workspace_id: WorkspaceId, project_id: ProjectId) -> Result<()>;
+    async fn list_tags(&self, workspace_id: WorkspaceId) -> Result<Vec<Tag>>;
+    async fn create_tag(&self, workspace_id: WorkspaceId, name: &str) -> Result<Tag>;
+    async fn update_tag(&self, workspace_id: WorkspaceId, tag_id: TagId, name: &str)
+    -> Result<Tag>;
+    async fn delete_tag(&self, workspace_id: WorkspaceId, tag_id: TagId) -> Result<()>;
 }
 
 pub struct TogglClient {
@@ -227,7 +242,7 @@ impl ApiClient for TogglClient {
 
     async fn create_time_entry(
         &self,
-        workspace_id: i64,
+        workspace_id: WorkspaceId,
         params: &CreateTimeEntryParams,
     ) -> Result<TimeEntry> {
         let url = format!("{}/workspaces/{workspace_id}/time_entries", self.base_url);
@@ -249,7 +264,7 @@ impl ApiClient for TogglClient {
 
     async fn update_time_entry(
         &self,
-        workspace_id: i64,
+        workspace_id: WorkspaceId,
         entry_id: TimeEntryId,
         params: &UpdateTimeEntryParams,
     ) -> Result<TimeEntry> {
@@ -267,7 +282,11 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn delete_time_entry(&self, workspace_id: i64, entry_id: TimeEntryId) -> Result<()> {
+    async fn delete_time_entry(
+        &self,
+        workspace_id: WorkspaceId,
+        entry_id: TimeEntryId,
+    ) -> Result<()> {
         let url = format!(
             "{}/workspaces/{workspace_id}/time_entries/{entry_id}",
             self.base_url
@@ -275,7 +294,11 @@ impl ApiClient for TogglClient {
         self.delete_request(&url).await
     }
 
-    async fn stop_time_entry(&self, workspace_id: i64, entry_id: TimeEntryId) -> Result<TimeEntry> {
+    async fn stop_time_entry(
+        &self,
+        workspace_id: WorkspaceId,
+        entry_id: TimeEntryId,
+    ) -> Result<TimeEntry> {
         let url = format!(
             "{}/workspaces/{workspace_id}/time_entries/{entry_id}/stop",
             self.base_url
@@ -284,13 +307,17 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn list_projects(&self, workspace_id: i64) -> Result<Vec<Project>> {
+    async fn list_projects(&self, workspace_id: WorkspaceId) -> Result<Vec<Project>> {
         let url = format!("{}/workspaces/{workspace_id}/projects", self.base_url);
         let wire: Vec<WireProject> = self.get(&url).await?;
         Ok(wire.into_iter().map(Into::into).collect())
     }
 
-    async fn get_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<Project> {
+    async fn get_project(
+        &self,
+        workspace_id: WorkspaceId,
+        project_id: ProjectId,
+    ) -> Result<Project> {
         let url = format!(
             "{}/workspaces/{workspace_id}/projects/{project_id}",
             self.base_url
@@ -301,7 +328,7 @@ impl ApiClient for TogglClient {
 
     async fn create_project(
         &self,
-        workspace_id: i64,
+        workspace_id: WorkspaceId,
         params: &CreateProjectParams,
     ) -> Result<Project> {
         let url = format!("{}/workspaces/{workspace_id}/projects", self.base_url);
@@ -315,7 +342,7 @@ impl ApiClient for TogglClient {
 
     async fn update_project(
         &self,
-        workspace_id: i64,
+        workspace_id: WorkspaceId,
         project_id: ProjectId,
         params: &UpdateProjectParams,
     ) -> Result<Project> {
@@ -330,7 +357,7 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn delete_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<()> {
+    async fn delete_project(&self, workspace_id: WorkspaceId, project_id: ProjectId) -> Result<()> {
         let url = format!(
             "{}/workspaces/{workspace_id}/projects/{project_id}",
             self.base_url
@@ -338,13 +365,13 @@ impl ApiClient for TogglClient {
         self.delete_request(&url).await
     }
 
-    async fn list_tags(&self, workspace_id: i64) -> Result<Vec<Tag>> {
+    async fn list_tags(&self, workspace_id: WorkspaceId) -> Result<Vec<Tag>> {
         let url = format!("{}/workspaces/{workspace_id}/tags", self.base_url);
         let wire: Vec<WireTag> = self.get(&url).await?;
         Ok(wire.into_iter().map(Into::into).collect())
     }
 
-    async fn create_tag(&self, workspace_id: i64, name: &str) -> Result<Tag> {
+    async fn create_tag(&self, workspace_id: WorkspaceId, name: &str) -> Result<Tag> {
         let url = format!("{}/workspaces/{workspace_id}/tags", self.base_url);
         let body = CreateTagRequest {
             name: name.to_string(),
@@ -353,7 +380,12 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn update_tag(&self, workspace_id: i64, tag_id: TagId, name: &str) -> Result<Tag> {
+    async fn update_tag(
+        &self,
+        workspace_id: WorkspaceId,
+        tag_id: TagId,
+        name: &str,
+    ) -> Result<Tag> {
         let url = format!("{}/workspaces/{workspace_id}/tags/{tag_id}", self.base_url);
         let body = UpdateTagRequest {
             name: name.to_string(),
@@ -362,7 +394,7 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn delete_tag(&self, workspace_id: i64, tag_id: TagId) -> Result<()> {
+    async fn delete_tag(&self, workspace_id: WorkspaceId, tag_id: TagId) -> Result<()> {
         let url = format!("{}/workspaces/{workspace_id}/tags/{tag_id}", self.base_url);
         self.delete_request(&url).await
     }
@@ -447,7 +479,7 @@ mod tests {
         let user = client.get_me().await.unwrap();
         assert_eq!(user.email, "test@example.com");
         assert_eq!(user.fullname, "Test User");
-        assert_eq!(user.default_workspace_id, 1);
+        assert_eq!(user.default_workspace_id, WorkspaceId(1));
     }
 
     // --- get_current_timer ---
@@ -568,7 +600,10 @@ mod tests {
             tags: vec![],
             billable: false,
         };
-        let entry = client.create_time_entry(1, &params).await.unwrap();
+        let entry = client
+            .create_time_entry(WorkspaceId(1), &params)
+            .await
+            .unwrap();
         assert_eq!(entry.id, TimeEntryId(100));
     }
 
@@ -590,7 +625,7 @@ mod tests {
             billable: None,
         };
         let entry = client
-            .update_time_entry(1, TimeEntryId(42), &params)
+            .update_time_entry(WorkspaceId(1), TimeEntryId(42), &params)
             .await
             .unwrap();
         assert_eq!(entry.id, TimeEntryId(42));
@@ -607,7 +642,9 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = client.delete_time_entry(1, TimeEntryId(42)).await;
+        let result = client
+            .delete_time_entry(WorkspaceId(1), TimeEntryId(42))
+            .await;
         assert!(result.is_ok());
     }
 
@@ -622,7 +659,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let entry = client.stop_time_entry(1, TimeEntryId(42)).await.unwrap();
+        let entry = client
+            .stop_time_entry(WorkspaceId(1), TimeEntryId(42))
+            .await
+            .unwrap();
         assert_eq!(entry.id, TimeEntryId(42));
     }
 
@@ -640,7 +680,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let projects = client.list_projects(1).await.unwrap();
+        let projects = client.list_projects(WorkspaceId(1)).await.unwrap();
         assert_eq!(projects.len(), 1);
         assert_eq!(projects[0].id, ProjectId(10));
     }
@@ -654,7 +694,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let project = client.get_project(1, ProjectId(10)).await.unwrap();
+        let project = client
+            .get_project(WorkspaceId(1), ProjectId(10))
+            .await
+            .unwrap();
         assert_eq!(project.id, ProjectId(10));
     }
 
@@ -670,7 +713,10 @@ mod tests {
         let params = CreateProjectParams {
             name: "New Project".to_string(),
         };
-        let project = client.create_project(1, &params).await.unwrap();
+        let project = client
+            .create_project(WorkspaceId(1), &params)
+            .await
+            .unwrap();
         assert_eq!(project.id, ProjectId(11));
     }
 
@@ -687,7 +733,7 @@ mod tests {
             name: Some("Renamed".to_string()),
         };
         let project = client
-            .update_project(1, ProjectId(10), &params)
+            .update_project(WorkspaceId(1), ProjectId(10), &params)
             .await
             .unwrap();
         assert_eq!(project.id, ProjectId(10));
@@ -702,7 +748,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = client.delete_project(1, ProjectId(10)).await;
+        let result = client.delete_project(WorkspaceId(1), ProjectId(10)).await;
         assert!(result.is_ok());
     }
 
@@ -719,7 +765,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let tags = client.list_tags(1).await.unwrap();
+        let tags = client.list_tags(WorkspaceId(1)).await.unwrap();
         assert_eq!(tags.len(), 1);
         assert_eq!(tags[0].id, TagId(5));
     }
@@ -733,7 +779,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let tag = client.create_tag(1, "New Tag").await.unwrap();
+        let tag = client.create_tag(WorkspaceId(1), "New Tag").await.unwrap();
         assert_eq!(tag.id, TagId(6));
     }
 
@@ -746,7 +792,10 @@ mod tests {
             .mount(&server)
             .await;
 
-        let tag = client.update_tag(1, TagId(5), "Renamed").await.unwrap();
+        let tag = client
+            .update_tag(WorkspaceId(1), TagId(5), "Renamed")
+            .await
+            .unwrap();
         assert_eq!(tag.id, TagId(5));
     }
 
@@ -759,7 +808,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = client.delete_tag(1, TagId(5)).await;
+        let result = client.delete_tag(WorkspaceId(1), TagId(5)).await;
         assert!(result.is_ok());
     }
 
@@ -773,7 +822,7 @@ mod tests {
         let now = Utc::now();
         let entry = TimeEntry {
             id: TimeEntryId(42),
-            workspace_id: 1,
+            workspace_id: WorkspaceId(1),
             description: Some("My task".to_string()),
             start: now,
             stop: Some(now),
@@ -858,7 +907,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = client.delete_tag(1, TagId(1)).await;
+        let result = client.delete_tag(WorkspaceId(1), TagId(1)).await;
         assert!(result.is_err());
         match result.unwrap_err() {
             AppError::HttpStatus { status, .. } => assert_eq!(status, 404),

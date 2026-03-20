@@ -26,7 +26,7 @@ async fn run(json: bool, client: &(impl ApiClient + ?Sized)) -> Result<()> {
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
-    use crate::models::User;
+    use crate::models::{User, WorkspaceId};
 
     #[tokio::test]
     async fn me_displays_user() {
@@ -35,7 +35,7 @@ mod tests {
             Ok(User {
                 email: "test@example.com".to_string(),
                 fullname: "Test User".to_string(),
-                default_workspace_id: 123,
+                default_workspace_id: WorkspaceId(123),
                 timezone: "Asia/Tokyo".to_string(),
             })
         });

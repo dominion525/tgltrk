@@ -1,10 +1,10 @@
 use crate::api::client::ApiClient;
-use crate::models::TagId;
 use crate::cli::TagsAction;
 use crate::commands::{
     CacheHits, build_client, cached_fetch, invalidate_cache, resolve_workspace_id,
 };
 use crate::error::Result;
+use crate::models::{TagId, WorkspaceId};
 use crate::output;
 
 pub async fn execute(action: TagsAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -32,16 +32,14 @@ async fn run(
     match action {
         TagsAction::List => list(json, wid, client, &mut hits).await,
         TagsAction::Create { name } => create(json, wid, &name, client, &hits).await,
-        TagsAction::Update { id, name } => {
-            update(json, wid, TagId(id), &name, client, &hits).await
-        }
+        TagsAction::Update { id, name } => update(json, wid, TagId(id), &name, client, &hits).await,
         TagsAction::Delete { id } => delete(json, wid, TagId(id), client, &hits).await,
     }
 }
 
 async fn list(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     client: &(impl ApiClient + ?Sized),
     hits: &mut CacheHits,
 ) -> Result<()> {
@@ -52,7 +50,7 @@ async fn list(
 
 async fn create(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     name: &str,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
@@ -64,7 +62,7 @@ async fn create(
 
 async fn update(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     id: TagId,
     name: &str,
     client: &(impl ApiClient + ?Sized),
@@ -77,7 +75,7 @@ async fn update(
 
 async fn delete(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     id: TagId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
@@ -96,7 +94,7 @@ mod tests {
     fn make_tag(id: i64, name: &str) -> Tag {
         Tag {
             id: TagId(id),
-            workspace_id: 1,
+            workspace_id: WorkspaceId(1),
             name: name.to_string(),
         }
     }
@@ -114,7 +112,7 @@ mod tests {
     async fn delete_tag_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_delete_tag()
-            .withf(|wid, tid| *wid == 1 && *tid == TagId(3))
+            .withf(|wid, tid| *wid == WorkspaceId(1) && *tid == TagId(3))
             .returning(|_, _| Ok(()));
         let result = run(TagsAction::Delete { id: 3 }, false, Some(1), &mock).await;
         assert!(result.is_ok());
@@ -158,7 +156,7 @@ mod tests {
     async fn update_tag_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_update_tag()
-            .withf(|wid, tid, _| *wid == 1 && *tid == TagId(5))
+            .withf(|wid, tid, _| *wid == WorkspaceId(1) && *tid == TagId(5))
             .returning(|_, _, _| Ok(make_tag(5, "renamed")));
         let result = run(
             TagsAction::Update {

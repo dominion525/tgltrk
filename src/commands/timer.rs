@@ -4,7 +4,7 @@ use crate::api::client::{ApiClient, CreateTimeEntryParams};
 use crate::cli::TimerAction;
 use crate::commands::{CacheHits, build_client, resolve_workspace_id};
 use crate::error::{AppError, Result};
-use crate::models::TaskId;
+use crate::models::{TaskId, WorkspaceId};
 use crate::output;
 
 pub async fn execute(action: TimerAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -72,7 +72,7 @@ async fn current(json: bool, client: &(impl ApiClient + ?Sized), hits: &CacheHit
 #[allow(clippy::too_many_arguments)]
 async fn start(
     json: bool,
-    workspace_id: i64,
+    workspace_id: WorkspaceId,
     description: Option<String>,
     project: Option<i64>,
     task: Option<TaskId>,
@@ -103,7 +103,7 @@ async fn stop(
         .await?
         .ok_or_else(|| AppError::NotFound("No running timer".to_string()))?;
 
-    let wid = workspace.unwrap_or(current.workspace_id);
+    let wid = workspace.map(WorkspaceId).unwrap_or(current.workspace_id);
     let entry = client.stop_time_entry(wid, current.id).await?;
     output::print_success(&entry, json, "Timer stopped", hits)
 }
@@ -119,7 +119,7 @@ mod tests {
         let now = Utc::now();
         TimeEntry {
             id: TimeEntryId(id),
-            workspace_id: 1,
+            workspace_id: WorkspaceId(1),
             description: Some("Test".to_string()),
             start: now,
             stop: if running { None } else { Some(now) },
@@ -153,7 +153,7 @@ mod tests {
         mock.expect_get_current_timer()
             .returning(|| Ok(Some(make_entry(10, true))));
         mock.expect_stop_time_entry()
-            .withf(|wid, eid| *wid == 1 && *eid == TimeEntryId(10))
+            .withf(|wid, eid| *wid == WorkspaceId(1) && *eid == TimeEntryId(10))
             .returning(|_, _| Ok(make_entry(10, false)));
 
         let result = run(TimerAction::Stop, false, None, &mock).await;

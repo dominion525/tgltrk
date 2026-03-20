@@ -105,13 +105,13 @@ fn print_json<T: Serialize + ?Sized>(value: &T) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{Tag, TagId, User};
+    use crate::models::{Tag, TagId, User, WorkspaceId};
 
     fn make_user() -> User {
         User {
             email: "a@b.com".to_string(),
             fullname: "Alice".to_string(),
-            default_workspace_id: 1,
+            default_workspace_id: WorkspaceId(1),
             timezone: "UTC".to_string(),
         }
     }
@@ -135,12 +135,12 @@ mod tests {
         let tags = vec![
             Tag {
                 id: TagId(1),
-                workspace_id: 1,
+                workspace_id: WorkspaceId(1),
                 name: "a".to_string(),
             },
             Tag {
                 id: TagId(2),
-                workspace_id: 1,
+                workspace_id: WorkspaceId(1),
                 name: "b".to_string(),
             },
         ];

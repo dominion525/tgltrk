@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use super::WorkspaceId;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TagId(pub i64);
 
@@ -13,7 +15,7 @@ impl fmt::Display for TagId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Tag {
     pub id: TagId,
-    pub workspace_id: i64,
+    pub workspace_id: WorkspaceId,
     pub name: String,
 }
 

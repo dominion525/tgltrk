@@ -94,13 +94,13 @@ mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
     use crate::credentials::MockCredentialStore;
-    use crate::models::User;
+    use crate::models::{User, WorkspaceId};
 
     fn mock_user() -> User {
         User {
             email: "t@t.com".to_string(),
             fullname: "T".to_string(),
-            default_workspace_id: 1,
+            default_workspace_id: WorkspaceId(1),
             timezone: "UTC".to_string(),
         }
     }

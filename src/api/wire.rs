@@ -1,7 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::{Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User};
+use crate::models::{
+    Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User, WorkspaceId,
+};
 
 // --- Response types (API → domain) ---
 
@@ -18,7 +20,7 @@ impl From<WireUser> for User {
         User {
             email: w.email,
             fullname: w.fullname,
-            default_workspace_id: w.default_workspace_id,
+            default_workspace_id: WorkspaceId(w.default_workspace_id),
             timezone: w.timezone,
         }
     }
@@ -42,7 +44,7 @@ impl From<WireTimeEntry> for TimeEntry {
     fn from(w: WireTimeEntry) -> Self {
         TimeEntry {
             id: TimeEntryId(w.id),
-            workspace_id: w.workspace_id,
+            workspace_id: WorkspaceId(w.workspace_id),
             description: w.description,
             start: w.start,
             stop: w.stop,
@@ -69,7 +71,7 @@ impl From<WireProject> for Project {
     fn from(w: WireProject) -> Self {
         Project {
             id: ProjectId(w.id),
-            workspace_id: w.workspace_id,
+            workspace_id: WorkspaceId(w.workspace_id),
             name: w.name,
             active: w.active,
             color: w.color,
@@ -89,7 +91,7 @@ impl From<WireTag> for Tag {
     fn from(w: WireTag) -> Self {
         Tag {
             id: TagId(w.id),
-            workspace_id: w.workspace_id,
+            workspace_id: WorkspaceId(w.workspace_id),
             name: w.name,
         }
     }
@@ -99,7 +101,7 @@ impl From<WireTag> for Tag {
 
 #[derive(Debug, Serialize)]
 pub struct CreateTimeEntryRequest {
-    pub workspace_id: i64,
+    pub workspace_id: WorkspaceId,
     pub description: Option<String>,
     pub project_id: Option<i64>,
     pub task_id: Option<TaskId>,
@@ -160,7 +162,7 @@ mod tests {
         let u: User = w.into();
         assert_eq!(u.email, "a@b.com");
         assert_eq!(u.fullname, "Alice");
-        assert_eq!(u.default_workspace_id, 42);
+        assert_eq!(u.default_workspace_id, WorkspaceId(42));
         assert_eq!(u.timezone, "UTC");
     }
 
@@ -235,7 +237,7 @@ mod tests {
         };
         let p: Project = w.into();
         assert_eq!(p.id, ProjectId(5));
-        assert_eq!(p.workspace_id, 3);
+        assert_eq!(p.workspace_id, WorkspaceId(3));
         assert_eq!(p.name, "Proj");
         assert!(p.active);
         assert_eq!(p.color, "#fff");
@@ -251,7 +253,7 @@ mod tests {
         };
         let t: Tag = w.into();
         assert_eq!(t.id, TagId(7));
-        assert_eq!(t.workspace_id, 4);
+        assert_eq!(t.workspace_id, WorkspaceId(4));
         assert_eq!(t.name, "urgent");
     }
 }

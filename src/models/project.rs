@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+use super::WorkspaceId;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProjectId(pub i64);
 
@@ -13,7 +15,7 @@ impl fmt::Display for ProjectId {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
     pub id: ProjectId,
-    pub workspace_id: i64,
+    pub workspace_id: WorkspaceId,
     pub name: String,
     pub active: bool,
     pub color: String,
@@ -34,7 +36,7 @@ mod tests {
     fn make_project(active: bool) -> Project {
         Project {
             id: ProjectId(1),
-            workspace_id: 1,
+            workspace_id: WorkspaceId(1),
             name: "Test".to_string(),
             active,
             color: "#fff".to_string(),

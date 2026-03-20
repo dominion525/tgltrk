@@ -4,7 +4,7 @@ use crate::commands::{
     CacheHits, build_client, cached_fetch, invalidate_cache, resolve_workspace_id,
 };
 use crate::error::Result;
-use crate::models::ProjectId;
+use crate::models::{ProjectId, WorkspaceId};
 use crate::output;
 
 pub async fn execute(action: ProjectsAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -42,7 +42,7 @@ async fn run(
 
 async fn list(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     client: &(impl ApiClient + ?Sized),
     hits: &mut CacheHits,
 ) -> Result<()> {
@@ -53,7 +53,7 @@ async fn list(
 
 async fn get(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     id: ProjectId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
@@ -64,7 +64,7 @@ async fn get(
 
 async fn create(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     name: &str,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
@@ -79,7 +79,7 @@ async fn create(
 
 async fn update(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     id: ProjectId,
     name: Option<String>,
     client: &(impl ApiClient + ?Sized),
@@ -93,7 +93,7 @@ async fn update(
 
 async fn delete(
     json: bool,
-    wid: i64,
+    wid: WorkspaceId,
     id: ProjectId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
@@ -112,7 +112,7 @@ mod tests {
     fn make_project(id: i64, name: &str) -> Project {
         Project {
             id: ProjectId(id),
-            workspace_id: 1,
+            workspace_id: WorkspaceId(1),
             name: name.to_string(),
             active: true,
             color: "#06aaf5".to_string(),
@@ -137,7 +137,7 @@ mod tests {
     async fn delete_project_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_delete_project()
-            .withf(|wid, pid| *wid == 1 && *pid == ProjectId(5))
+            .withf(|wid, pid| *wid == WorkspaceId(1) && *pid == ProjectId(5))
             .returning(|_, _| Ok(()));
         let result = run(ProjectsAction::Delete { id: 5 }, false, Some(1), &mock).await;
         assert!(result.is_ok());
@@ -147,7 +147,7 @@ mod tests {
     async fn get_project_by_id() {
         let mut mock = MockApiClient::new();
         mock.expect_get_project()
-            .withf(|wid, pid| *wid == 1 && *pid == ProjectId(10))
+            .withf(|wid, pid| *wid == WorkspaceId(1) && *pid == ProjectId(10))
             .returning(|_, _| Ok(make_project(10, "My Project")));
         let result = run(ProjectsAction::Get { id: 10 }, false, Some(1), &mock).await;
         assert!(result.is_ok());
@@ -200,7 +200,7 @@ mod tests {
     async fn update_project_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_update_project()
-            .withf(|wid, pid, _| *wid == 1 && *pid == ProjectId(10))
+            .withf(|wid, pid, _| *wid == WorkspaceId(1) && *pid == ProjectId(10))
             .returning(|_, _, _| Ok(make_project(10, "Renamed")));
         let result = run(
             ProjectsAction::Update {

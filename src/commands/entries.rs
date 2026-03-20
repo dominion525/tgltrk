@@ -2,7 +2,7 @@ use crate::api::client::{ApiClient, CreateTimeEntryParams, UpdateTimeEntryParams
 use crate::cli::EntriesAction;
 use crate::commands::{CacheHits, build_client, resolve_workspace_id};
 use crate::error::Result;
-use crate::models::TimeEntryId;
+use crate::models::{TimeEntryId, WorkspaceId};
 use crate::output;
 
 pub async fn execute(action: EntriesAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -92,7 +92,7 @@ async fn get(
 #[allow(clippy::too_many_arguments)]
 async fn edit(
     json: bool,
-    workspace_id: i64,
+    workspace_id: WorkspaceId,
     entry_id: TimeEntryId,
     description: Option<String>,
     project: Option<i64>,
@@ -115,7 +115,7 @@ async fn edit(
 
 async fn delete(
     json: bool,
-    workspace_id: i64,
+    workspace_id: WorkspaceId,
     entry_id: TimeEntryId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
@@ -149,7 +149,7 @@ mod tests {
         let now = Utc::now();
         TimeEntry {
             id: TimeEntryId(id),
-            workspace_id: 1,
+            workspace_id: WorkspaceId(1),
             description: Some("Test entry".to_string()),
             start: now,
             stop: Some(now),
@@ -165,7 +165,7 @@ mod tests {
         let now = Utc::now();
         TimeEntry {
             id: TimeEntryId(id),
-            workspace_id: 1,
+            workspace_id: WorkspaceId(1),
             description: Some("Test entry".to_string()),
             start: now,
             stop: None,
@@ -270,7 +270,7 @@ mod tests {
     async fn edit_entry_updates_fields() {
         let mut mock = MockApiClient::new();
         mock.expect_update_time_entry()
-            .withf(|wid, eid, _| *wid == 1 && *eid == TimeEntryId(10))
+            .withf(|wid, eid, _| *wid == WorkspaceId(1) && *eid == TimeEntryId(10))
             .returning(|_, _, _| Ok(make_entry(10)));
         let result = run(
             EntriesAction::Edit {
@@ -313,7 +313,7 @@ mod tests {
     async fn delete_entry_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_delete_time_entry()
-            .withf(|wid, eid| *wid == 1 && *eid == TimeEntryId(7))
+            .withf(|wid, eid| *wid == WorkspaceId(1) && *eid == TimeEntryId(7))
             .returning(|_, _| Ok(()));
         let result = run(EntriesAction::Delete { id: 7 }, false, Some(1), &mock).await;
         assert!(result.is_ok());

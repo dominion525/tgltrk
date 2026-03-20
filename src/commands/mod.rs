@@ -12,6 +12,7 @@ use crate::api::client::{ApiClient, TogglClient};
 use crate::cache::FileCache;
 use crate::constants::CACHE_TTL_HOURS;
 use crate::error::Result;
+use crate::models::WorkspaceId;
 
 /// キャッシュヒットしたエンティティ名を収集する
 #[derive(Default, Debug)]
@@ -39,9 +40,9 @@ pub async fn resolve_workspace_id(
     client: &(impl ApiClient + ?Sized),
     workspace_override: Option<i64>,
     hits: &mut CacheHits,
-) -> Result<i64> {
+) -> Result<WorkspaceId> {
     if let Some(id) = workspace_override {
-        return Ok(id);
+        return Ok(WorkspaceId(id));
     }
     let user = cached_fetch("user", hits, client.get_me()).await?;
     Ok(user.default_workspace_id)
@@ -97,7 +98,7 @@ mod tests {
         let result = resolve_workspace_id(&mock, Some(42), &mut hits)
             .await
             .unwrap();
-        assert_eq!(result, 42);
+        assert_eq!(result, WorkspaceId(42));
         assert!(hits.entities().is_empty());
     }
 
