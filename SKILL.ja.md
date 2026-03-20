@@ -94,6 +94,10 @@ tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b tr
 | エントリ削除               | `tgltrk entries delete ENTRY_ID`                      |
 | プロジェクト一覧           | `tgltrk projects list`                                |
 | プロジェクト作成           | `tgltrk projects create "名前"`                       |
+| クライアント一覧           | `tgltrk clients list`                                 |
+| クライアント作成           | `tgltrk clients create "名前"`                        |
+| クライアント更新           | `tgltrk clients update CLIENT_ID --name "新しい名前"` |
+| クライアント削除           | `tgltrk clients delete CLIENT_ID`                     |
 | タグ一覧                   | `tgltrk tags list`                                    |
 | タグ作成                   | `tgltrk tags create "名前"`                           |
 | キャッシュ確認             | `tgltrk cache status`                                 |

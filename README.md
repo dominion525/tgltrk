@@ -132,6 +132,25 @@ $ tgltrk projects delete 1004
 ✓ Project #1004 deleted
 ```
 
+### Clients
+
+```bash
+$ tgltrk clients list
+#101 Acme Corp
+#102 Globex Inc
+
+$ tgltrk clients create "New Client"
+✓ Client created
+#103 New Client
+
+$ tgltrk clients update 103 --name "Renamed Client"
+✓ Client updated
+#103 Renamed Client
+
+$ tgltrk clients delete 103
+✓ Client #103 deleted
+```
+
 ### Tags
 
 ```bash

@@ -94,6 +94,10 @@ tgltrk entries edit ENTRY_ID [-d "description"] [-p PROJECT_ID] [-t tag1,tag2] [
 | Delete entry               | `tgltrk entries delete ENTRY_ID`                       |
 | List projects              | `tgltrk projects list`                                 |
 | Create project             | `tgltrk projects create "name"`                        |
+| List clients               | `tgltrk clients list`                                  |
+| Create client              | `tgltrk clients create "name"`                         |
+| Update client              | `tgltrk clients update CLIENT_ID --name "new name"`    |
+| Delete client              | `tgltrk clients delete CLIENT_ID`                      |
 | List tags                  | `tgltrk tags list`                                     |
 | Create tag                 | `tgltrk tags create "name"`                            |
 | Cache status               | `tgltrk cache status`                                  |

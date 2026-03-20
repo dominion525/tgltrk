@@ -132,6 +132,25 @@ $ tgltrk projects delete 1004
 ✓ Project #1004 deleted
 ```
 
+### クライアント管理
+
+```bash
+$ tgltrk clients list
+#101 株式会社A
+#102 株式会社B
+
+$ tgltrk clients create "新規クライアント"
+✓ Client created
+#103 新規クライアント
+
+$ tgltrk clients update 103 --name "名前変更"
+✓ Client updated
+#103 名前変更
+
+$ tgltrk clients delete 103
+✓ Client #103 deleted
+```
+
 ### タグ管理
 
 ```bash
