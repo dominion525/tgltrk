@@ -11,7 +11,7 @@ fn parse_date(s: &str) -> Result<String, String> {
 #[command(name = "tgltrk", about = "Toggl Track CLI", version)]
 pub struct Cli {
     #[command(subcommand)]
-    pub command: Command,
+    pub command: Option<Command>,
 
     /// Output in JSON format
     #[arg(long, global = true)]
@@ -20,6 +20,10 @@ pub struct Cli {
     /// Override workspace ID
     #[arg(long, global = true)]
     pub workspace: Option<i64>,
+
+    /// Print SKILL.md for AI agent integration and exit
+    #[arg(long = "help-skill", visible_aliases = ["export-skill", "skill"])]
+    pub help_skill: bool,
 }
 
 #[derive(Subcommand)]

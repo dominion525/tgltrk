@@ -13,10 +13,19 @@ use cli::{CacheAction, Cli, Command};
 use colored::Colorize;
 
 pub async fn run_cli(cli: Cli) -> error::Result<()> {
+    if cli.help_skill {
+        print!("{}", include_str!("../SKILL.md"));
+        return Ok(());
+    }
+
+    let command = cli.command.ok_or_else(|| {
+        error::AppError::InvalidInput("No command provided. Run with --help for usage.".to_string())
+    })?;
+
     let json = cli.json;
     let workspace = cli.workspace;
 
-    match cli.command {
+    match command {
         Command::Auth { action } => commands::auth::execute(action).await,
         Command::Me => commands::me::execute(json, workspace).await,
         Command::Timer { action } => commands::timer::execute(action, json, workspace).await,
@@ -51,11 +60,12 @@ mod tests {
     #[tokio::test]
     async fn run_cli_cache_status_succeeds() {
         let cli = Cli {
-            command: Command::Cache {
+            command: Some(Command::Cache {
                 action: CacheAction::Status,
-            },
+            }),
             json: false,
             workspace: None,
+            help_skill: false,
         };
         let result = run_cli(cli).await;
         assert!(result.is_ok());
@@ -64,11 +74,24 @@ mod tests {
     #[tokio::test]
     async fn run_cli_cache_clear_succeeds() {
         let cli = Cli {
-            command: Command::Cache {
+            command: Some(Command::Cache {
                 action: CacheAction::Clear,
-            },
+            }),
             json: false,
             workspace: None,
+            help_skill: false,
+        };
+        let result = run_cli(cli).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn run_cli_help_skill_outputs_skill_md() {
+        let cli = Cli {
+            command: None,
+            json: false,
+            workspace: None,
+            help_skill: true,
         };
         let result = run_cli(cli).await;
         assert!(result.is_ok());
