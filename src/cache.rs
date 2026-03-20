@@ -159,12 +159,20 @@ impl FileCache {
             source: e,
         })?;
 
-        let tmp_path = self.cache_dir.join(format!(".{key}.tmp.json"));
+        let tmp_path = self
+            .cache_dir
+            .join(format!(".{key}.{}.tmp.json", std::process::id()));
         std::fs::write(&tmp_path, json.as_bytes()).map_err(|e| CacheError::Io {
             op: "write_tmp",
             path: tmp_path.clone(),
             source: e,
         })?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(&tmp_path, std::fs::Permissions::from_mode(0o600));
+        }
 
         std::fs::rename(&tmp_path, &path).map_err(|e| CacheError::Io {
             op: "rename",
@@ -200,21 +208,33 @@ impl FileCache {
         }
     }
 
-    pub fn status(&self, keys: &[&str]) -> Vec<CacheFileStatus> {
-        keys.iter()
-            .filter_map(|key| {
-                let path = cache_file_path(&self.cache_dir, key).ok()?;
+    pub fn status(&self) -> Vec<CacheFileStatus> {
+        let entries = match std::fs::read_dir(&self.cache_dir) {
+            Ok(entries) => entries,
+            Err(_) => return Vec::new(),
+        };
+        let mut result: Vec<CacheFileStatus> = entries
+            .filter_map(|entry| {
+                let entry = entry.ok()?;
+                let path = entry.path();
+                if path.extension().and_then(|e| e.to_str()) != Some("json") {
+                    return None;
+                }
+                let name = path.file_name()?.to_str()?;
+                if name.starts_with('.') {
+                    return None;
+                }
+                let key = path.file_stem()?.to_str()?.to_string();
                 let meta = std::fs::metadata(&path).ok()?;
                 Some(CacheFileStatus {
-                    key: (*key).to_string(),
+                    key,
                     size: meta.len(),
-                    modified: meta.modified().ok().map(|t| {
-                        let dt: DateTime<Utc> = t.into();
-                        dt
-                    }),
+                    modified: meta.modified().ok().map(|t| t.into()),
                 })
             })
-            .collect()
+            .collect();
+        result.sort_by(|a, b| a.key.cmp(&b.key));
+        result
     }
 
     pub fn cache_dir(&self) -> &Path {
@@ -447,7 +467,7 @@ mod tests {
         cache.set("projects", &vec!["p1"]).unwrap();
         cache.set("tags", &vec!["t1"]).unwrap();
 
-        let statuses = cache.status(&["projects", "tags"]);
+        let statuses = cache.status();
         assert_eq!(statuses.len(), 2);
     }
 
@@ -455,7 +475,7 @@ mod tests {
     fn status_returns_empty_when_no_cache() {
         let tmp = TempDir::new().unwrap();
         let cache = make_cache(&tmp);
-        let statuses = cache.status(&["user", "projects", "tags"]);
+        let statuses = cache.status();
         assert!(statuses.is_empty());
     }
 

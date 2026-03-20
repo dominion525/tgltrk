@@ -42,7 +42,8 @@ async fn list(
     client: &(impl ApiClient + ?Sized),
     hits: &mut CacheHits,
 ) -> Result<()> {
-    let tags = cached_fetch("tags", hits, client.list_tags(wid)).await?;
+    let key = format!("tags_{wid}");
+    let tags = cached_fetch(&key, hits, client.list_tags(wid)).await?;
     output::print_list(&tags, json, hits)
 }
 
@@ -54,7 +55,7 @@ async fn create(
     hits: &CacheHits,
 ) -> Result<()> {
     let tag = client.create_tag(wid, name).await?;
-    invalidate_cache("tags");
+    invalidate_cache(&format!("tags_{wid}"));
     output::print_success(&tag, json, "Tag created", hits)
 }
 
@@ -67,7 +68,7 @@ async fn update(
     hits: &CacheHits,
 ) -> Result<()> {
     let tag = client.update_tag(wid, id, name).await?;
-    invalidate_cache("tags");
+    invalidate_cache(&format!("tags_{wid}"));
     output::print_success(&tag, json, "Tag updated", hits)
 }
 
@@ -79,7 +80,7 @@ async fn delete(
     hits: &CacheHits,
 ) -> Result<()> {
     client.delete_tag(wid, id).await?;
-    invalidate_cache("tags");
+    invalidate_cache(&format!("tags_{wid}"));
     output::print_deleted(json, &format!("Tag #{id} deleted"), hits)
 }
 

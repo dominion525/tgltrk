@@ -57,10 +57,7 @@ async fn run(
             let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
             delete(json, wid, id, client, &hits).await
         }
-        EntriesAction::Continue { id } => {
-            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
-            continue_entry(json, wid, id, client, &hits).await
-        }
+        EntriesAction::Continue { id } => continue_entry(json, id, client, &hits).await,
     }
 }
 
@@ -126,14 +123,15 @@ async fn delete(
 
 async fn continue_entry(
     json: bool,
-    workspace_id: i64,
     entry_id: i64,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
     let source = client.get_time_entry(entry_id).await?;
     let params = CreateTimeEntryParams::from(&source);
-    let entry = client.create_time_entry(workspace_id, &params).await?;
+    let entry = client
+        .create_time_entry(source.workspace_id, &params)
+        .await?;
     output::print_success(&entry, json, "Timer continued", hits)
 }
 

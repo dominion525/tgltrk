@@ -23,7 +23,10 @@ impl TimeEntry {
 
     pub fn display_duration(&self) -> String {
         let secs = if self.is_running() {
-            Utc::now().signed_duration_since(self.start).num_seconds()
+            Utc::now()
+                .signed_duration_since(self.start)
+                .num_seconds()
+                .max(0)
         } else {
             self.duration
         };

@@ -62,6 +62,12 @@ pub fn invalidate_cache(key: &str) {
     }
 }
 
+pub fn clear_all_cache() {
+    if let Some(cache) = get_cache() {
+        let _ = cache.clear();
+    }
+}
+
 pub async fn cached_fetch<T, Fut>(key: &str, hits: &mut CacheHits, fetch: Fut) -> Result<T>
 where
     T: serde::Serialize + serde::de::DeserializeOwned,

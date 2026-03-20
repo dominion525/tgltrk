@@ -43,7 +43,8 @@ async fn list(
     client: &(impl ApiClient + ?Sized),
     hits: &mut CacheHits,
 ) -> Result<()> {
-    let projects = cached_fetch("projects", hits, client.list_projects(wid)).await?;
+    let key = format!("projects_{wid}");
+    let projects = cached_fetch(&key, hits, client.list_projects(wid)).await?;
     output::print_list(&projects, json, hits)
 }
 
@@ -69,7 +70,7 @@ async fn create(
         name: name.to_string(),
     };
     let project = client.create_project(wid, &params).await?;
-    invalidate_cache("projects");
+    invalidate_cache(&format!("projects_{wid}"));
     output::print_success(&project, json, "Project created", hits)
 }
 
@@ -83,7 +84,7 @@ async fn update(
 ) -> Result<()> {
     let params = UpdateProjectParams { name };
     let project = client.update_project(wid, id, &params).await?;
-    invalidate_cache("projects");
+    invalidate_cache(&format!("projects_{wid}"));
     output::print_success(&project, json, "Project updated", hits)
 }
 
@@ -95,7 +96,7 @@ async fn delete(
     hits: &CacheHits,
 ) -> Result<()> {
     client.delete_project(wid, id).await?;
-    invalidate_cache("projects");
+    invalidate_cache(&format!("projects_{wid}"));
     output::print_deleted(json, &format!("Project #{id} deleted"), hits)
 }
 

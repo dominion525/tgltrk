@@ -30,6 +30,7 @@ async fn login_inner(
 ) -> Result<()> {
     let user = client.get_me().await?;
     store.save(token)?;
+    super::clear_all_cache();
     println!(
         "{} Authenticated as {} ({})",
         "✓".green().bold(),
