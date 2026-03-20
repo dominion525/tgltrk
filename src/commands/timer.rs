@@ -248,7 +248,7 @@ mod tests {
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        let _guard = crate::ENV_MUTEX.lock().unwrap();
+        let _guard = crate::ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let server = MockServer::start().await;
         // SAFETY: env var access serialized by ENV_MUTEX
         unsafe { std::env::set_var("TOGGL_API_TOKEN", "test_token") };
@@ -290,6 +290,6 @@ mod tests {
         .await;
         // SAFETY: test is single-threaded for env var access
         unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
-        assert!(result.is_ok());
+        assert!(result.is_ok(), "execute_start failed: {:?}", result.err());
     }
 }

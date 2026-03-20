@@ -137,7 +137,7 @@ mod tests {
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        let _guard = crate::ENV_MUTEX.lock().unwrap();
+        let _guard = crate::ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let server = MockServer::start().await;
         // SAFETY: env var access serialized by ENV_MUTEX
         unsafe { std::env::set_var("TOGGL_API_TOKEN", "test_token") };
@@ -164,7 +164,7 @@ mod tests {
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        let _guard = crate::ENV_MUTEX.lock().unwrap();
+        let _guard = crate::ENV_MUTEX.lock().unwrap_or_else(|e| e.into_inner());
         let server = MockServer::start().await;
         // SAFETY: env var access serialized by ENV_MUTEX
         unsafe { std::env::set_var("TOGGL_API_TOKEN", "test_token") };
