@@ -219,11 +219,23 @@ API tokens are stored in the OS native keyring (macOS Keychain / Windows Credent
 
 ## Limitations
 
-- **No bulk operations**: batch delete or batch edit of multiple entries is not supported
+- **No bulk operations**: batch edit/delete of multiple entries or projects is not supported
 - **No reporting**: Toggl Track's reporting endpoints (Summary, Detailed, Weekly) are not supported
 - **No workspace management**: workspaces can be listed but not created or modified; `--workspace` selects an existing one
-- **Paid features**: features exclusive to paid Toggl Track plans (e.g., project templates, time estimates, required fields) are not supported
-- **Rate limits**: Toggl Track API enforces rate limits. The CLI caches user info, projects, and tags for 72 hours to minimize API calls. If you hit rate limits, wait for the rate limit to reset before retrying
+- **Paid features**: features exclusive to paid Toggl Track plans (e.g., tasks, project templates, time estimates, required fields) are not supported
+- **Rate limits**: Toggl Track API enforces rate limits. The CLI caches data for 72 hours to minimize API calls. If you hit rate limits, wait for the reset before retrying
+
+### API endpoints not covered
+
+The following Toggl Track API v9 endpoints are available but not implemented in this CLI:
+
+- `PUT /me` — Update user profile (timezone, email, etc.)
+- `GET /me/projects`, `GET /me/clients`, `GET /me/tags` — Cross-workspace listing (single-workspace listing via `--workspace` is supported)
+- `GET /me/features` — Account feature flags
+- `GET /me/location` — IP-based location
+- `GET /me/web-timer` — Web timer state (use `timer current` instead)
+- `PATCH /workspaces/{wid}/time_entries/{ids}` — Bulk update time entries
+- `PATCH /workspaces/{wid}/projects/{ids}` — Bulk update projects
 
 ## License
 
