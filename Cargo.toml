@@ -3,8 +3,13 @@ name = "tgltrk"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85.0"
-description = "CLI tool for Toggl Track time tracking"
+description = "Unofficial Toggl Track CLI — manage timers, entries, projects, clients, and tags from the command line"
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/dominion525/tgltrk"
+homepage = "https://github.com/dominion525/tgltrk"
+readme = "README.md"
+keywords = ["toggl", "time-tracking", "cli", "productivity"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
