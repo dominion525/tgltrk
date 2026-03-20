@@ -1,6 +1,6 @@
 use base64::{Engine as _, engine::general_purpose};
 use chrono::{DateTime, Utc};
-use reqwest::{Client, RequestBuilder, header};
+use reqwest::{RequestBuilder, header};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -9,12 +9,13 @@ use std::time::Duration;
 use crate::constants::{API_BASE_URL, API_TIMEOUT_SECS};
 use crate::error::{AppError, Result};
 use crate::models::{
-    Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User, WorkspaceId,
+    ClientId, Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User, WorkspaceId,
 };
 
 use super::wire::{
-    CreateProjectRequest, CreateTagRequest, CreateTimeEntryRequest, UpdateProjectRequest,
-    UpdateTagRequest, UpdateTimeEntryRequest, WireProject, WireTag, WireTimeEntry, WireUser,
+    CreateClientRequest, CreateProjectRequest, CreateTagRequest, CreateTimeEntryRequest,
+    UpdateClientRequest, UpdateProjectRequest, UpdateTagRequest, UpdateTimeEntryRequest,
+    WireClient, WireProject, WireTag, WireTimeEntry, WireUser,
 };
 
 #[cfg(test)]
@@ -120,10 +121,30 @@ pub trait ApiClient {
     async fn update_tag(&self, workspace_id: WorkspaceId, tag_id: TagId, name: &str)
     -> Result<Tag>;
     async fn delete_tag(&self, workspace_id: WorkspaceId, tag_id: TagId) -> Result<()>;
+    async fn list_clients(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<crate::models::Client>>;
+    async fn create_client(
+        &self,
+        workspace_id: WorkspaceId,
+        name: &str,
+    ) -> Result<crate::models::Client>;
+    async fn update_client(
+        &self,
+        workspace_id: WorkspaceId,
+        client_id: ClientId,
+        name: &str,
+    ) -> Result<crate::models::Client>;
+    async fn delete_client(
+        &self,
+        workspace_id: WorkspaceId,
+        client_id: ClientId,
+    ) -> Result<()>;
 }
 
 pub struct TogglClient {
-    http: Client,
+    http: reqwest::Client,
     base_url: String,
 }
 
@@ -141,7 +162,7 @@ impl TogglClient {
             header::HeaderValue::from_static("application/json"),
         );
 
-        let http = Client::builder()
+        let http = reqwest::Client::builder()
             .default_headers(headers)
             .timeout(Duration::from_secs(API_TIMEOUT_SECS))
             .user_agent(format!("tgltrk/{}", env!("CARGO_PKG_VERSION")))
@@ -412,6 +433,57 @@ impl ApiClient for TogglClient {
 
     async fn delete_tag(&self, workspace_id: WorkspaceId, tag_id: TagId) -> Result<()> {
         let url = format!("{}/workspaces/{workspace_id}/tags/{tag_id}", self.base_url);
+        self.delete_request(&url).await
+    }
+
+    async fn list_clients(
+        &self,
+        workspace_id: WorkspaceId,
+    ) -> Result<Vec<crate::models::Client>> {
+        let url = format!("{}/workspaces/{workspace_id}/clients", self.base_url);
+        let wire: Vec<WireClient> = self.get(&url).await?;
+        Ok(wire.into_iter().map(Into::into).collect())
+    }
+
+    async fn create_client(
+        &self,
+        workspace_id: WorkspaceId,
+        name: &str,
+    ) -> Result<crate::models::Client> {
+        let url = format!("{}/workspaces/{workspace_id}/clients", self.base_url);
+        let body = CreateClientRequest {
+            name: name.to_string(),
+        };
+        let wire: WireClient = self.post(&url, &body).await?;
+        Ok(wire.into())
+    }
+
+    async fn update_client(
+        &self,
+        workspace_id: WorkspaceId,
+        client_id: ClientId,
+        name: &str,
+    ) -> Result<crate::models::Client> {
+        let url = format!(
+            "{}/workspaces/{workspace_id}/clients/{client_id}",
+            self.base_url
+        );
+        let body = UpdateClientRequest {
+            name: name.to_string(),
+        };
+        let wire: WireClient = self.put(&url, &body).await?;
+        Ok(wire.into())
+    }
+
+    async fn delete_client(
+        &self,
+        workspace_id: WorkspaceId,
+        client_id: ClientId,
+    ) -> Result<()> {
+        let url = format!(
+            "{}/workspaces/{workspace_id}/clients/{client_id}",
+            self.base_url
+        );
         self.delete_request(&url).await
     }
 }

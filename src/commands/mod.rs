@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod cache_cmd;
+pub mod clients;
 pub mod entries;
 pub mod me;
 pub mod projects;

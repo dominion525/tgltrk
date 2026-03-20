@@ -2,7 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 use crate::models::{
-    Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User, WorkspaceId,
+    Client, ClientId, Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User,
+    WorkspaceId,
 };
 
 // --- Response types (API → domain) ---
@@ -142,6 +143,33 @@ pub struct CreateProjectRequest {
 pub struct UpdateProjectRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct WireClient {
+    pub id: i64,
+    pub wid: i64,
+    pub name: String,
+}
+
+impl From<WireClient> for Client {
+    fn from(w: WireClient) -> Self {
+        Client {
+            id: ClientId(w.id),
+            workspace_id: WorkspaceId(w.wid),
+            name: w.name,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct CreateClientRequest {
+    pub name: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UpdateClientRequest {
+    pub name: String,
 }
 
 #[derive(Debug, Serialize)]

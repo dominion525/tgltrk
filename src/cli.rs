@@ -60,6 +60,11 @@ pub enum Command {
         #[command(subcommand)]
         action: TagsAction,
     },
+    /// Manage clients
+    Clients {
+        #[command(subcommand)]
+        action: ClientsAction,
+    },
     /// Manage cache
     Cache {
         #[command(subcommand)]
@@ -239,6 +244,30 @@ pub enum TagsAction {
     /// Delete a tag
     Delete {
         /// Tag ID
+        id: i64,
+    },
+}
+
+#[derive(Subcommand)]
+pub enum ClientsAction {
+    /// List all clients
+    List,
+    /// Create a new client
+    Create {
+        /// Client name
+        name: String,
+    },
+    /// Update a client
+    Update {
+        /// Client ID
+        id: i64,
+        /// New name
+        #[arg(long)]
+        name: String,
+    },
+    /// Delete a client
+    Delete {
+        /// Client ID
         id: i64,
     },
 }
