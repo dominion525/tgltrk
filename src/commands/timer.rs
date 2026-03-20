@@ -253,17 +253,7 @@ mod tests {
         // SAFETY: env var access serialized by ENV_MUTEX
         unsafe { std::env::set_var("TOGGL_API_TOKEN", "test_token") };
 
-        // Mock for get_me (workspace resolution)
-        Mock::given(method("GET"))
-            .and(path("/me"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
-                "email": "t@t.com", "fullname": "T",
-                "default_workspace_id": 1, "timezone": "UTC"
-            })))
-            .mount(&server)
-            .await;
-
-        // Mock for create_time_entry
+        // Mock for create_time_entry (workspace_id is passed explicitly, no /me needed)
         Mock::given(method("POST"))
             .and(path("/workspaces/1/time_entries"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
@@ -284,7 +274,7 @@ mod tests {
                 billable: false,
             },
             false,
-            None,
+            Some(1),
             Some(&server.uri()),
         )
         .await;
