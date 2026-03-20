@@ -4,6 +4,7 @@ use crate::api::client::{ApiClient, CreateTimeEntryParams};
 use crate::cli::TimerAction;
 use crate::commands::{CacheHits, build_client, resolve_workspace_id};
 use crate::error::{AppError, Result};
+use crate::models::TaskId;
 use crate::output;
 
 pub async fn execute(action: TimerAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -42,7 +43,7 @@ async fn run(
                 wid,
                 description,
                 project,
-                task,
+                task.map(TaskId),
                 tags,
                 billable,
                 client,
@@ -74,7 +75,7 @@ async fn start(
     workspace_id: i64,
     description: Option<String>,
     project: Option<i64>,
-    task: Option<i64>,
+    task: Option<TaskId>,
     tags: Option<Vec<String>>,
     billable: bool,
     client: &(impl ApiClient + ?Sized),

@@ -5,6 +5,9 @@ use std::fmt;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimeEntryId(pub i64);
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TaskId(pub i64);
+
 impl fmt::Display for TimeEntryId {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.0)
@@ -20,7 +23,7 @@ pub struct TimeEntry {
     pub stop: Option<DateTime<Utc>>,
     pub duration: i64,
     pub project_id: Option<i64>,
-    pub task_id: Option<i64>,
+    pub task_id: Option<TaskId>,
     pub tags: Vec<String>,
     pub billable: bool,
 }

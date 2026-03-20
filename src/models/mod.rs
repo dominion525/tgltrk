@@ -5,5 +5,5 @@ mod user;
 
 pub use project::{Project, ProjectId};
 pub use tag::{Tag, TagId};
-pub use time_entry::{TimeEntry, TimeEntryId};
+pub use time_entry::{TaskId, TimeEntry, TimeEntryId};
 pub use user::User;

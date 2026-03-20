@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::constants::{API_BASE_URL, API_TIMEOUT_SECS};
 use crate::error::{AppError, Result};
-use crate::models::{Project, ProjectId, Tag, TagId, TimeEntry, TimeEntryId, User};
+use crate::models::{Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User};
 
 use super::wire::{
     CreateProjectRequest, CreateTagRequest, CreateTimeEntryRequest, UpdateProjectRequest,
@@ -22,7 +22,7 @@ use mockall::automock;
 pub struct CreateTimeEntryParams {
     pub description: Option<String>,
     pub project_id: Option<i64>,
-    pub task_id: Option<i64>,
+    pub task_id: Option<TaskId>,
     pub tags: Vec<String>,
     pub billable: bool,
 }
@@ -779,7 +779,7 @@ mod tests {
             stop: Some(now),
             duration: 3600,
             project_id: Some(10),
-            task_id: Some(20),
+            task_id: Some(TaskId(20)),
             tags: vec!["a".to_string(), "b".to_string()],
             billable: true,
         };

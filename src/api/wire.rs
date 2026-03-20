@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::{Project, ProjectId, Tag, TagId, TimeEntry, TimeEntryId, User};
+use crate::models::{Project, ProjectId, Tag, TagId, TaskId, TimeEntry, TimeEntryId, User};
 
 // --- Response types (API → domain) ---
 
@@ -48,7 +48,7 @@ impl From<WireTimeEntry> for TimeEntry {
             stop: w.stop,
             duration: w.duration,
             project_id: w.project_id,
-            task_id: w.task_id,
+            task_id: w.task_id.map(TaskId),
             tags: w.tags.unwrap_or_default(),
             billable: w.billable,
         }
@@ -102,7 +102,7 @@ pub struct CreateTimeEntryRequest {
     pub workspace_id: i64,
     pub description: Option<String>,
     pub project_id: Option<i64>,
-    pub task_id: Option<i64>,
+    pub task_id: Option<TaskId>,
     pub tags: Vec<String>,
     pub billable: bool,
     pub start: DateTime<Utc>,
