@@ -4,6 +4,7 @@ use crate::commands::{
     CacheHits, build_client, cached_fetch, invalidate_cache, resolve_workspace_id,
 };
 use crate::error::Result;
+use crate::models::ProjectId;
 use crate::output;
 
 pub async fn execute(action: ProjectsAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -30,10 +31,12 @@ async fn run(
     let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
     match action {
         ProjectsAction::List => list(json, wid, client, &mut hits).await,
-        ProjectsAction::Get { id } => get(json, wid, id, client, &hits).await,
+        ProjectsAction::Get { id } => get(json, wid, ProjectId(id), client, &hits).await,
         ProjectsAction::Create { name } => create(json, wid, &name, client, &hits).await,
-        ProjectsAction::Update { id, name } => update(json, wid, id, name, client, &hits).await,
-        ProjectsAction::Delete { id } => delete(json, wid, id, client, &hits).await,
+        ProjectsAction::Update { id, name } => {
+            update(json, wid, ProjectId(id), name, client, &hits).await
+        }
+        ProjectsAction::Delete { id } => delete(json, wid, ProjectId(id), client, &hits).await,
     }
 }
 
@@ -51,7 +54,7 @@ async fn list(
 async fn get(
     json: bool,
     wid: i64,
-    id: i64,
+    id: ProjectId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
@@ -77,7 +80,7 @@ async fn create(
 async fn update(
     json: bool,
     wid: i64,
-    id: i64,
+    id: ProjectId,
     name: Option<String>,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
@@ -91,7 +94,7 @@ async fn update(
 async fn delete(
     json: bool,
     wid: i64,
-    id: i64,
+    id: ProjectId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
@@ -108,7 +111,7 @@ mod tests {
 
     fn make_project(id: i64, name: &str) -> Project {
         Project {
-            id,
+            id: ProjectId(id),
             workspace_id: 1,
             name: name.to_string(),
             active: true,
@@ -134,7 +137,7 @@ mod tests {
     async fn delete_project_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_delete_project()
-            .withf(|wid, pid| *wid == 1 && *pid == 5)
+            .withf(|wid, pid| *wid == 1 && *pid == ProjectId(5))
             .returning(|_, _| Ok(()));
         let result = run(ProjectsAction::Delete { id: 5 }, false, Some(1), &mock).await;
         assert!(result.is_ok());
@@ -144,7 +147,7 @@ mod tests {
     async fn get_project_by_id() {
         let mut mock = MockApiClient::new();
         mock.expect_get_project()
-            .withf(|wid, pid| *wid == 1 && *pid == 10)
+            .withf(|wid, pid| *wid == 1 && *pid == ProjectId(10))
             .returning(|_, _| Ok(make_project(10, "My Project")));
         let result = run(ProjectsAction::Get { id: 10 }, false, Some(1), &mock).await;
         assert!(result.is_ok());
@@ -197,7 +200,7 @@ mod tests {
     async fn update_project_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_update_project()
-            .withf(|wid, pid, _| *wid == 1 && *pid == 10)
+            .withf(|wid, pid, _| *wid == 1 && *pid == ProjectId(10))
             .returning(|_, _, _| Ok(make_project(10, "Renamed")));
         let result = run(
             ProjectsAction::Update {

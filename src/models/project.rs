@@ -1,9 +1,18 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ProjectId(pub i64);
+
+impl fmt::Display for ProjectId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Project {
-    pub id: i64,
+    pub id: ProjectId,
     pub workspace_id: i64,
     pub name: String,
     pub active: bool,
@@ -24,7 +33,7 @@ mod tests {
 
     fn make_project(active: bool) -> Project {
         Project {
-            id: 1,
+            id: ProjectId(1),
             workspace_id: 1,
             name: "Test".to_string(),
             active,

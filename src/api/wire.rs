@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::{Project, Tag, TagId, TimeEntry, User};
+use crate::models::{Project, ProjectId, Tag, TagId, TimeEntry, User};
 
 // --- Response types (API → domain) ---
 
@@ -68,7 +68,7 @@ pub struct WireProject {
 impl From<WireProject> for Project {
     fn from(w: WireProject) -> Self {
         Project {
-            id: w.id,
+            id: ProjectId(w.id),
             workspace_id: w.workspace_id,
             name: w.name,
             active: w.active,
@@ -234,7 +234,7 @@ mod tests {
             billable: Some(true),
         };
         let p: Project = w.into();
-        assert_eq!(p.id, 5);
+        assert_eq!(p.id, ProjectId(5));
         assert_eq!(p.workspace_id, 3);
         assert_eq!(p.name, "Proj");
         assert!(p.active);

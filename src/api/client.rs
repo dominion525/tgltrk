@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::constants::{API_BASE_URL, API_TIMEOUT_SECS};
 use crate::error::{AppError, Result};
-use crate::models::{Project, Tag, TagId, TimeEntry, User};
+use crate::models::{Project, ProjectId, Tag, TagId, TimeEntry, User};
 
 use super::wire::{
     CreateProjectRequest, CreateTagRequest, CreateTimeEntryRequest, UpdateProjectRequest,
@@ -78,7 +78,7 @@ pub trait ApiClient {
     async fn delete_time_entry(&self, workspace_id: i64, entry_id: i64) -> Result<()>;
     async fn stop_time_entry(&self, workspace_id: i64, entry_id: i64) -> Result<TimeEntry>;
     async fn list_projects(&self, workspace_id: i64) -> Result<Vec<Project>>;
-    async fn get_project(&self, workspace_id: i64, project_id: i64) -> Result<Project>;
+    async fn get_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<Project>;
     async fn create_project(
         &self,
         workspace_id: i64,
@@ -87,10 +87,10 @@ pub trait ApiClient {
     async fn update_project(
         &self,
         workspace_id: i64,
-        project_id: i64,
+        project_id: ProjectId,
         params: &UpdateProjectParams,
     ) -> Result<Project>;
-    async fn delete_project(&self, workspace_id: i64, project_id: i64) -> Result<()>;
+    async fn delete_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<()>;
     async fn list_tags(&self, workspace_id: i64) -> Result<Vec<Tag>>;
     async fn create_tag(&self, workspace_id: i64, name: &str) -> Result<Tag>;
     async fn update_tag(&self, workspace_id: i64, tag_id: TagId, name: &str) -> Result<Tag>;
@@ -290,7 +290,7 @@ impl ApiClient for TogglClient {
         Ok(wire.into_iter().map(Into::into).collect())
     }
 
-    async fn get_project(&self, workspace_id: i64, project_id: i64) -> Result<Project> {
+    async fn get_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<Project> {
         let url = format!(
             "{}/workspaces/{workspace_id}/projects/{project_id}",
             self.base_url
@@ -316,7 +316,7 @@ impl ApiClient for TogglClient {
     async fn update_project(
         &self,
         workspace_id: i64,
-        project_id: i64,
+        project_id: ProjectId,
         params: &UpdateProjectParams,
     ) -> Result<Project> {
         let url = format!(
@@ -330,7 +330,7 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn delete_project(&self, workspace_id: i64, project_id: i64) -> Result<()> {
+    async fn delete_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<()> {
         let url = format!(
             "{}/workspaces/{workspace_id}/projects/{project_id}",
             self.base_url
@@ -639,7 +639,7 @@ mod tests {
 
         let projects = client.list_projects(1).await.unwrap();
         assert_eq!(projects.len(), 1);
-        assert_eq!(projects[0].id, 10);
+        assert_eq!(projects[0].id, ProjectId(10));
     }
 
     #[tokio::test]
@@ -651,8 +651,8 @@ mod tests {
             .mount(&server)
             .await;
 
-        let project = client.get_project(1, 10).await.unwrap();
-        assert_eq!(project.id, 10);
+        let project = client.get_project(1, ProjectId(10)).await.unwrap();
+        assert_eq!(project.id, ProjectId(10));
     }
 
     #[tokio::test]
@@ -668,7 +668,7 @@ mod tests {
             name: "New Project".to_string(),
         };
         let project = client.create_project(1, &params).await.unwrap();
-        assert_eq!(project.id, 11);
+        assert_eq!(project.id, ProjectId(11));
     }
 
     #[tokio::test]
@@ -683,8 +683,11 @@ mod tests {
         let params = UpdateProjectParams {
             name: Some("Renamed".to_string()),
         };
-        let project = client.update_project(1, 10, &params).await.unwrap();
-        assert_eq!(project.id, 10);
+        let project = client
+            .update_project(1, ProjectId(10), &params)
+            .await
+            .unwrap();
+        assert_eq!(project.id, ProjectId(10));
     }
 
     #[tokio::test]
@@ -696,7 +699,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = client.delete_project(1, 10).await;
+        let result = client.delete_project(1, ProjectId(10)).await;
         assert!(result.is_ok());
     }
 
