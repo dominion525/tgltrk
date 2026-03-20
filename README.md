@@ -168,9 +168,17 @@ $ tgltrk tags delete 504
 ✓ Tag #504 deleted
 ```
 
+### Workspaces
+
+```bash
+$ tgltrk workspaces list
+#1234 My Workspace
+#5678 Team Workspace
+```
+
 ### Cache
 
-User info, projects, and tag lists are cached for 72 hours to reduce API calls. Toggl Track API has rate limits, and caching helps stay within those limits during normal usage.
+User info, projects, clients, tags, and workspaces are cached for 72 hours to reduce API calls. Toggl Track API has rate limits, and caching helps stay within those limits during normal usage.
 
 ```bash
 $ tgltrk cache status
@@ -213,7 +221,7 @@ API tokens are stored in the OS native keyring (macOS Keychain / Windows Credent
 
 - **No bulk operations**: batch delete or batch edit of multiple entries is not supported
 - **No reporting**: Toggl Track's reporting endpoints (Summary, Detailed, Weekly) are not supported
-- **No workspace management**: workspaces cannot be created or modified; `--workspace` only selects an existing one
+- **No workspace management**: workspaces can be listed but not created or modified; `--workspace` selects an existing one
 - **Paid features**: features exclusive to paid Toggl Track plans (e.g., project templates, time estimates, required fields) are not supported
 - **Rate limits**: Toggl Track API enforces rate limits. The CLI caches user info, projects, and tags for 72 hours to minimize API calls. If you hit rate limits, wait for the rate limit to reset before retrying
 

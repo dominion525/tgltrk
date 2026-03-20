@@ -101,6 +101,7 @@ tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b tr
 | クライアント削除           | `tgltrk clients delete CLIENT_ID`                     |
 | タグ一覧                   | `tgltrk tags list`                                    |
 | タグ作成                   | `tgltrk tags create "名前"`                           |
+| ワークスペース一覧         | `tgltrk workspaces list`                              |
 | キャッシュ確認             | `tgltrk cache status`                                 |
 | キャッシュクリア           | `tgltrk cache clear`                                  |
 
@@ -136,6 +137,6 @@ tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b tr
 
 ## 制約
 
-- ワークスペースの作成・変更は不可（`--workspace` は選択のみ）
+- ワークスペースの一覧表示は可能だが、作成・変更は不可（`--workspace` は選択のみ）
 - レポート機能（概要・詳細・週次）は未対応
 - 一括操作（バッチ削除等）は未対応

@@ -101,6 +101,7 @@ tgltrk entries edit ENTRY_ID [-d "description"] [-p PROJECT_ID] [-t tag1,tag2] [
 | Delete client              | `tgltrk clients delete CLIENT_ID`                      |
 | List tags                  | `tgltrk tags list`                                     |
 | Create tag                 | `tgltrk tags create "name"`                            |
+| List workspaces            | `tgltrk workspaces list`                               |
 | Cache status               | `tgltrk cache status`                                  |
 | Clear cache                | `tgltrk cache clear`                                   |
 
@@ -136,6 +137,6 @@ Errors are printed to stderr as `Error: ...` with exit code 1. Triggered by miss
 
 ## Limitations
 
-- Workspaces cannot be created or modified (`--workspace` selects only)
+- Workspaces can be listed but not created or modified (`--workspace` selects only)
 - Reporting endpoints (Summary, Detailed, Weekly) are not supported
 - Bulk operations (e.g., batch delete) are not supported
