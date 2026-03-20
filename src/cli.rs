@@ -263,6 +263,11 @@ pub enum TagsAction {
 pub enum ClientsAction {
     /// List all clients
     List,
+    /// Get a specific client
+    Get {
+        /// Client ID
+        id: i64,
+    },
     /// Create a new client
     Create {
         /// Client name
@@ -287,6 +292,11 @@ pub enum ClientsAction {
 pub enum WorkspacesAction {
     /// List all workspaces
     List,
+    /// Get workspace details
+    Get {
+        /// Workspace ID
+        id: i64,
+    },
 }
 
 #[derive(Subcommand)]

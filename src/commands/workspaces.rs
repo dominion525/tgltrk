@@ -2,6 +2,7 @@ use crate::api::client::ApiClient;
 use crate::cli::WorkspacesAction;
 use crate::commands::{CacheHits, build_client, cached_fetch};
 use crate::error::Result;
+use crate::models::WorkspaceId;
 use crate::output;
 
 pub async fn execute(action: WorkspacesAction, json: bool) -> Result<()> {
@@ -25,7 +26,18 @@ async fn run(
     let mut hits = CacheHits::new();
     match action {
         WorkspacesAction::List => list(json, client, &mut hits).await,
+        WorkspacesAction::Get { id } => get(json, WorkspaceId(id), client, &hits).await,
     }
+}
+
+async fn get(
+    json: bool,
+    id: WorkspaceId,
+    client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
+) -> Result<()> {
+    let ws = client.get_workspace(id).await?;
+    output::print_result(&mut std::io::stdout(), &ws, json, hits)
 }
 
 async fn list(

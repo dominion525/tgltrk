@@ -143,7 +143,13 @@ pub trait ApiClient {
         workspace_id: WorkspaceId,
         client_id: ClientId,
     ) -> Result<()>;
+    async fn get_client(
+        &self,
+        workspace_id: WorkspaceId,
+        client_id: ClientId,
+    ) -> Result<crate::models::Client>;
     async fn list_workspaces(&self) -> Result<Vec<crate::models::Workspace>>;
+    async fn get_workspace(&self, workspace_id: WorkspaceId) -> Result<crate::models::Workspace>;
 }
 
 pub struct TogglClient {
@@ -492,10 +498,29 @@ impl ApiClient for TogglClient {
         self.delete_request(&url).await
     }
 
+    async fn get_client(
+        &self,
+        workspace_id: WorkspaceId,
+        client_id: ClientId,
+    ) -> Result<crate::models::Client> {
+        let url = format!(
+            "{}/workspaces/{workspace_id}/clients/{client_id}",
+            self.base_url
+        );
+        let wire: WireClient = self.get(&url).await?;
+        Ok(wire.into())
+    }
+
     async fn list_workspaces(&self) -> Result<Vec<crate::models::Workspace>> {
         let url = format!("{}/me/workspaces", self.base_url);
         let wire: Vec<WireWorkspace> = self.get(&url).await?;
         Ok(wire.into_iter().map(Into::into).collect())
+    }
+
+    async fn get_workspace(&self, workspace_id: WorkspaceId) -> Result<crate::models::Workspace> {
+        let url = format!("{}/workspaces/{workspace_id}", self.base_url);
+        let wire: WireWorkspace = self.get(&url).await?;
+        Ok(wire.into())
     }
 }
 

@@ -31,6 +31,7 @@ async fn run(
     let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
     match action {
         ClientsAction::List => list(json, wid, client, &mut hits).await,
+        ClientsAction::Get { id } => get(json, wid, ClientId(id), client, &hits).await,
         ClientsAction::Create { name } => create(json, wid, &name, client, &hits).await,
         ClientsAction::Update { id, name } => {
             update(json, wid, ClientId(id), &name, client, &hits).await
@@ -48,6 +49,17 @@ async fn list(
     let key = format!("clients_{wid}");
     let clients = cached_fetch(&key, hits, client.list_clients(wid)).await?;
     output::print_list(&mut std::io::stdout(), &clients, json, hits)
+}
+
+async fn get(
+    json: bool,
+    wid: WorkspaceId,
+    id: ClientId,
+    client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
+) -> Result<()> {
+    let c = client.get_client(wid, id).await?;
+    output::print_result(&mut std::io::stdout(), &c, json, hits)
 }
 
 async fn create(
