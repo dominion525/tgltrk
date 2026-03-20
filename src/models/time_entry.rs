@@ -2,9 +2,18 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TimeEntryId(pub i64);
+
+impl fmt::Display for TimeEntryId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TimeEntry {
-    pub id: i64,
+    pub id: TimeEntryId,
     pub workspace_id: i64,
     pub description: Option<String>,
     pub start: DateTime<Utc>,
@@ -62,7 +71,7 @@ mod tests {
 
     fn make_entry(duration: i64, tags: Vec<String>) -> TimeEntry {
         TimeEntry {
-            id: 1,
+            id: TimeEntryId(1),
             workspace_id: 1,
             description: Some("Test".to_string()),
             start: Utc::now(),

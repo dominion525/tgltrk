@@ -111,13 +111,13 @@ async fn stop(
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
-    use crate::models::TimeEntry;
+    use crate::models::{TimeEntry, TimeEntryId};
     use chrono::Utc;
 
     fn make_entry(id: i64, running: bool) -> TimeEntry {
         let now = Utc::now();
         TimeEntry {
-            id,
+            id: TimeEntryId(id),
             workspace_id: 1,
             description: Some("Test".to_string()),
             start: now,
@@ -152,7 +152,7 @@ mod tests {
         mock.expect_get_current_timer()
             .returning(|| Ok(Some(make_entry(10, true))));
         mock.expect_stop_time_entry()
-            .withf(|wid, eid| *wid == 1 && *eid == 10)
+            .withf(|wid, eid| *wid == 1 && *eid == TimeEntryId(10))
             .returning(|_, _| Ok(make_entry(10, false)));
 
         let result = run(TimerAction::Stop, false, None, &mock).await;

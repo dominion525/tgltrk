@@ -2,6 +2,7 @@ use crate::api::client::{ApiClient, CreateTimeEntryParams, UpdateTimeEntryParams
 use crate::cli::EntriesAction;
 use crate::commands::{CacheHits, build_client, resolve_workspace_id};
 use crate::error::Result;
+use crate::models::TimeEntryId;
 use crate::output;
 
 pub async fn execute(action: EntriesAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -31,7 +32,7 @@ async fn run(
             until,
             count,
         } => list(json, since, until, count, client, &hits).await,
-        EntriesAction::Get { id } => get(json, id, client, &hits).await,
+        EntriesAction::Get { id } => get(json, TimeEntryId(id), client, &hits).await,
         EntriesAction::Edit {
             id,
             description,
@@ -43,7 +44,7 @@ async fn run(
             edit(
                 json,
                 wid,
-                id,
+                TimeEntryId(id),
                 description,
                 project,
                 tags,
@@ -55,9 +56,11 @@ async fn run(
         }
         EntriesAction::Delete { id } => {
             let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
-            delete(json, wid, id, client, &hits).await
+            delete(json, wid, TimeEntryId(id), client, &hits).await
         }
-        EntriesAction::Continue { id } => continue_entry(json, id, client, &hits).await,
+        EntriesAction::Continue { id } => {
+            continue_entry(json, TimeEntryId(id), client, &hits).await
+        }
     }
 }
 
@@ -78,7 +81,7 @@ async fn list(
 
 async fn get(
     json: bool,
-    id: i64,
+    id: TimeEntryId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
@@ -90,7 +93,7 @@ async fn get(
 async fn edit(
     json: bool,
     workspace_id: i64,
-    entry_id: i64,
+    entry_id: TimeEntryId,
     description: Option<String>,
     project: Option<i64>,
     tags: Option<Vec<String>>,
@@ -113,7 +116,7 @@ async fn edit(
 async fn delete(
     json: bool,
     workspace_id: i64,
-    entry_id: i64,
+    entry_id: TimeEntryId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
@@ -123,7 +126,7 @@ async fn delete(
 
 async fn continue_entry(
     json: bool,
-    entry_id: i64,
+    entry_id: TimeEntryId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
@@ -139,13 +142,13 @@ async fn continue_entry(
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
-    use crate::models::TimeEntry;
+    use crate::models::{TimeEntry, TimeEntryId};
     use chrono::Utc;
 
     fn make_entry(id: i64) -> TimeEntry {
         let now = Utc::now();
         TimeEntry {
-            id,
+            id: TimeEntryId(id),
             workspace_id: 1,
             description: Some("Test entry".to_string()),
             start: now,
@@ -161,7 +164,7 @@ mod tests {
     fn make_running_entry(id: i64) -> TimeEntry {
         let now = Utc::now();
         TimeEntry {
-            id,
+            id: TimeEntryId(id),
             workspace_id: 1,
             description: Some("Test entry".to_string()),
             start: now,
@@ -197,7 +200,7 @@ mod tests {
     async fn continue_entry_copies_fields() {
         let mut mock = MockApiClient::new();
         mock.expect_get_time_entry()
-            .withf(|id| *id == 5)
+            .withf(|id| *id == TimeEntryId(5))
             .returning(|_| Ok(make_entry(5)));
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_running_entry(6)));
@@ -248,7 +251,7 @@ mod tests {
     async fn get_entry_by_id() {
         let mut mock = MockApiClient::new();
         mock.expect_get_time_entry()
-            .withf(|id| *id == 42)
+            .withf(|id| *id == TimeEntryId(42))
             .returning(|_| Ok(make_entry(42)));
         let result = run(EntriesAction::Get { id: 42 }, false, None, &mock).await;
         assert!(result.is_ok());
@@ -267,7 +270,7 @@ mod tests {
     async fn edit_entry_updates_fields() {
         let mut mock = MockApiClient::new();
         mock.expect_update_time_entry()
-            .withf(|wid, eid, _| *wid == 1 && *eid == 10)
+            .withf(|wid, eid, _| *wid == 1 && *eid == TimeEntryId(10))
             .returning(|_, _, _| Ok(make_entry(10)));
         let result = run(
             EntriesAction::Edit {
@@ -310,7 +313,7 @@ mod tests {
     async fn delete_entry_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_delete_time_entry()
-            .withf(|wid, eid| *wid == 1 && *eid == 7)
+            .withf(|wid, eid| *wid == 1 && *eid == TimeEntryId(7))
             .returning(|_, _| Ok(()));
         let result = run(EntriesAction::Delete { id: 7 }, false, Some(1), &mock).await;
         assert!(result.is_ok());

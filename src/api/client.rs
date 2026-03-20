@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::constants::{API_BASE_URL, API_TIMEOUT_SECS};
 use crate::error::{AppError, Result};
-use crate::models::{Project, ProjectId, Tag, TagId, TimeEntry, User};
+use crate::models::{Project, ProjectId, Tag, TagId, TimeEntry, TimeEntryId, User};
 
 use super::wire::{
     CreateProjectRequest, CreateTagRequest, CreateTimeEntryRequest, UpdateProjectRequest,
@@ -63,7 +63,7 @@ pub trait ApiClient {
         since: Option<String>,
         until: Option<String>,
     ) -> Result<Vec<TimeEntry>>;
-    async fn get_time_entry(&self, entry_id: i64) -> Result<TimeEntry>;
+    async fn get_time_entry(&self, entry_id: TimeEntryId) -> Result<TimeEntry>;
     async fn create_time_entry(
         &self,
         workspace_id: i64,
@@ -72,11 +72,11 @@ pub trait ApiClient {
     async fn update_time_entry(
         &self,
         workspace_id: i64,
-        entry_id: i64,
+        entry_id: TimeEntryId,
         params: &UpdateTimeEntryParams,
     ) -> Result<TimeEntry>;
-    async fn delete_time_entry(&self, workspace_id: i64, entry_id: i64) -> Result<()>;
-    async fn stop_time_entry(&self, workspace_id: i64, entry_id: i64) -> Result<TimeEntry>;
+    async fn delete_time_entry(&self, workspace_id: i64, entry_id: TimeEntryId) -> Result<()>;
+    async fn stop_time_entry(&self, workspace_id: i64, entry_id: TimeEntryId) -> Result<TimeEntry>;
     async fn list_projects(&self, workspace_id: i64) -> Result<Vec<Project>>;
     async fn get_project(&self, workspace_id: i64, project_id: ProjectId) -> Result<Project>;
     async fn create_project(
@@ -219,7 +219,7 @@ impl ApiClient for TogglClient {
         Ok(wire.into_iter().map(Into::into).collect())
     }
 
-    async fn get_time_entry(&self, entry_id: i64) -> Result<TimeEntry> {
+    async fn get_time_entry(&self, entry_id: TimeEntryId) -> Result<TimeEntry> {
         let url = format!("{}/me/time_entries/{entry_id}", self.base_url);
         let wire: WireTimeEntry = self.get(&url).await?;
         Ok(wire.into())
@@ -250,7 +250,7 @@ impl ApiClient for TogglClient {
     async fn update_time_entry(
         &self,
         workspace_id: i64,
-        entry_id: i64,
+        entry_id: TimeEntryId,
         params: &UpdateTimeEntryParams,
     ) -> Result<TimeEntry> {
         let url = format!(
@@ -267,7 +267,7 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn delete_time_entry(&self, workspace_id: i64, entry_id: i64) -> Result<()> {
+    async fn delete_time_entry(&self, workspace_id: i64, entry_id: TimeEntryId) -> Result<()> {
         let url = format!(
             "{}/workspaces/{workspace_id}/time_entries/{entry_id}",
             self.base_url
@@ -275,7 +275,7 @@ impl ApiClient for TogglClient {
         self.delete_request(&url).await
     }
 
-    async fn stop_time_entry(&self, workspace_id: i64, entry_id: i64) -> Result<TimeEntry> {
+    async fn stop_time_entry(&self, workspace_id: i64, entry_id: TimeEntryId) -> Result<TimeEntry> {
         let url = format!(
             "{}/workspaces/{workspace_id}/time_entries/{entry_id}/stop",
             self.base_url
@@ -463,7 +463,7 @@ mod tests {
 
         let result = client.get_current_timer().await.unwrap();
         assert!(result.is_some());
-        assert_eq!(result.unwrap().id, 42);
+        assert_eq!(result.unwrap().id, TimeEntryId(42));
     }
 
     #[tokio::test]
@@ -508,7 +508,7 @@ mod tests {
 
         let entries = client.get_time_entries(None, None).await.unwrap();
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].id, 1);
+        assert_eq!(entries[0].id, TimeEntryId(1));
     }
 
     #[tokio::test]
@@ -546,8 +546,8 @@ mod tests {
             .mount(&server)
             .await;
 
-        let entry = client.get_time_entry(42).await.unwrap();
-        assert_eq!(entry.id, 42);
+        let entry = client.get_time_entry(TimeEntryId(42)).await.unwrap();
+        assert_eq!(entry.id, TimeEntryId(42));
     }
 
     // --- create_time_entry ---
@@ -569,7 +569,7 @@ mod tests {
             billable: false,
         };
         let entry = client.create_time_entry(1, &params).await.unwrap();
-        assert_eq!(entry.id, 100);
+        assert_eq!(entry.id, TimeEntryId(100));
     }
 
     // --- update_time_entry ---
@@ -589,8 +589,11 @@ mod tests {
             tags: None,
             billable: None,
         };
-        let entry = client.update_time_entry(1, 42, &params).await.unwrap();
-        assert_eq!(entry.id, 42);
+        let entry = client
+            .update_time_entry(1, TimeEntryId(42), &params)
+            .await
+            .unwrap();
+        assert_eq!(entry.id, TimeEntryId(42));
     }
 
     // --- delete_time_entry ---
@@ -604,7 +607,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = client.delete_time_entry(1, 42).await;
+        let result = client.delete_time_entry(1, TimeEntryId(42)).await;
         assert!(result.is_ok());
     }
 
@@ -619,8 +622,8 @@ mod tests {
             .mount(&server)
             .await;
 
-        let entry = client.stop_time_entry(1, 42).await.unwrap();
-        assert_eq!(entry.id, 42);
+        let entry = client.stop_time_entry(1, TimeEntryId(42)).await.unwrap();
+        assert_eq!(entry.id, TimeEntryId(42));
     }
 
     // --- projects ---
@@ -769,7 +772,7 @@ mod tests {
 
         let now = Utc::now();
         let entry = TimeEntry {
-            id: 42,
+            id: TimeEntryId(42),
             workspace_id: 1,
             description: Some("My task".to_string()),
             start: now,

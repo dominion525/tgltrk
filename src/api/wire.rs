@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::models::{Project, ProjectId, Tag, TagId, TimeEntry, User};
+use crate::models::{Project, ProjectId, Tag, TagId, TimeEntry, TimeEntryId, User};
 
 // --- Response types (API → domain) ---
 
@@ -41,7 +41,7 @@ pub struct WireTimeEntry {
 impl From<WireTimeEntry> for TimeEntry {
     fn from(w: WireTimeEntry) -> Self {
         TimeEntry {
-            id: w.id,
+            id: TimeEntryId(w.id),
             workspace_id: w.workspace_id,
             description: w.description,
             start: w.start,
