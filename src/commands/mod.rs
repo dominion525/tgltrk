@@ -61,13 +61,17 @@ pub fn build_client(base_url: Option<&str>) -> Result<TogglClient> {
 
 pub fn invalidate_cache(key: &str) {
     if let Some(cache) = get_cache() {
-        let _ = cache.invalidate(key);
+        if let Err(e) = cache.invalidate(key) {
+            eprintln!("Warning: failed to invalidate cache key '{key}': {e}");
+        }
     }
 }
 
 pub fn clear_all_cache() {
     if let Some(cache) = get_cache() {
-        let _ = cache.clear();
+        if let Err(e) = cache.clear() {
+            eprintln!("Warning: failed to clear cache: {e}");
+        }
     }
 }
 
@@ -83,7 +87,9 @@ where
     }
     let value = fetch.await?;
     if let Some(c) = &cache {
-        let _ = c.set(key, &value);
+        if let Err(e) = c.set(key, &value) {
+            eprintln!("Warning: failed to write cache key '{key}': {e}");
+        }
     }
     Ok(value)
 }

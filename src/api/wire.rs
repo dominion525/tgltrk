@@ -31,12 +31,17 @@ impl From<WireUser> for User {
 pub struct WireTimeEntry {
     pub id: i64,
     pub workspace_id: i64,
+    #[serde(default)]
     pub description: Option<String>,
     pub start: DateTime<Utc>,
+    #[serde(default)]
     pub stop: Option<DateTime<Utc>>,
     pub duration: i64,
+    #[serde(default)]
     pub project_id: Option<i64>,
+    #[serde(default)]
     pub task_id: Option<i64>,
+    #[serde(default)]
     pub tags: Option<Vec<String>>,
     pub billable: bool,
 }
@@ -65,7 +70,9 @@ pub struct WireProject {
     pub name: String,
     pub active: bool,
     pub color: String,
+    #[serde(default)]
     pub billable: Option<bool>,
+    #[serde(default)]
     pub client_id: Option<i64>,
 }
 

@@ -545,6 +545,146 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    // --- create / edit mock tests ---
+
+    #[tokio::test]
+    async fn create_entry_with_stop() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_time_entry()
+            .returning(|_, _| Ok(make_entry(20)));
+        let result = run(
+            EntriesAction::Create {
+                description: Some("Test".to_string()),
+                project: None,
+                task: None,
+                tags: None,
+                billable: false,
+                start: "2026-03-20T09:00:00Z".to_string(),
+                stop: Some("2026-03-20T10:00:00Z".to_string()),
+                duration: None,
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_entry_with_duration() {
+        let mut mock = MockApiClient::new();
+        mock.expect_create_time_entry()
+            .returning(|_, _| Ok(make_entry(21)));
+        let result = run(
+            EntriesAction::Create {
+                description: None,
+                project: None,
+                task: None,
+                tags: None,
+                billable: false,
+                start: "2026-03-20T09:00:00Z".to_string(),
+                stop: None,
+                duration: Some("1h30m".to_string()),
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn create_entry_rejects_stop_and_duration() {
+        let mock = MockApiClient::new();
+        let result = run(
+            EntriesAction::Create {
+                description: None,
+                project: None,
+                task: None,
+                tags: None,
+                billable: false,
+                start: "2026-03-20T09:00:00Z".to_string(),
+                stop: Some("2026-03-20T10:00:00Z".to_string()),
+                duration: Some("1h".to_string()),
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn create_entry_rejects_stop_before_start() {
+        let mock = MockApiClient::new();
+        let result = run(
+            EntriesAction::Create {
+                description: None,
+                project: None,
+                task: None,
+                tags: None,
+                billable: false,
+                start: "2026-03-20T10:00:00Z".to_string(),
+                stop: Some("2026-03-20T09:00:00Z".to_string()),
+                duration: None,
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn edit_entry_with_start_time() {
+        let mut mock = MockApiClient::new();
+        mock.expect_update_time_entry()
+            .returning(|_, _, _| Ok(make_entry(10)));
+        let result = run(
+            EntriesAction::Edit {
+                id: 10,
+                description: None,
+                project: None,
+                tags: None,
+                billable: None,
+                start: Some("2026-03-20T09:30:00Z".to_string()),
+                stop: None,
+                duration: None,
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn edit_entry_rejects_stop_and_duration() {
+        let mock = MockApiClient::new();
+        let result = run(
+            EntriesAction::Edit {
+                id: 10,
+                description: None,
+                project: None,
+                tags: None,
+                billable: None,
+                start: None,
+                stop: Some("2026-03-20T10:00:00Z".to_string()),
+                duration: Some("1h".to_string()),
+            },
+            false,
+            Some(1),
+            &mock,
+        )
+        .await;
+        assert!(result.is_err());
+    }
+
     // --- parse_datetime tests ---
 
     #[test]

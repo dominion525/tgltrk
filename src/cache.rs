@@ -143,11 +143,21 @@ impl FileCache {
     pub fn set<T: Serialize>(&self, key: &str, value: &T) -> Result<(), CacheError> {
         let path = cache_file_path(&self.cache_dir, key)?;
 
+        let dir_existed = self.cache_dir.exists();
         std::fs::create_dir_all(&self.cache_dir).map_err(|e| CacheError::Io {
             op: "create_dir",
             path: self.cache_dir.clone(),
             source: e,
         })?;
+
+        #[cfg(unix)]
+        if !dir_existed {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(
+                &self.cache_dir,
+                std::fs::Permissions::from_mode(0o700),
+            );
+        }
 
         let entry = CacheEntry {
             data: value,
