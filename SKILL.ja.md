@@ -96,12 +96,14 @@ tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b tr
 | プロジェクト作成           | `tgltrk projects create "名前" [--client CLIENT_ID]`  |
 | プロジェクト更新           | `tgltrk projects update ID [--name "..."] [--client CLIENT_ID]` |
 | クライアント一覧           | `tgltrk clients list`                                 |
+| クライアント取得           | `tgltrk clients get CLIENT_ID`                        |
 | クライアント作成           | `tgltrk clients create "名前"`                        |
 | クライアント更新           | `tgltrk clients update CLIENT_ID --name "新しい名前"` |
 | クライアント削除           | `tgltrk clients delete CLIENT_ID`                     |
 | タグ一覧                   | `tgltrk tags list`                                    |
 | タグ作成                   | `tgltrk tags create "名前"`                           |
 | ワークスペース一覧         | `tgltrk workspaces list`                              |
+| ワークスペース取得         | `tgltrk workspaces get WORKSPACE_ID`                  |
 | キャッシュ確認             | `tgltrk cache status`                                 |
 | キャッシュクリア           | `tgltrk cache clear`                                  |
 

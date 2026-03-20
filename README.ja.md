@@ -140,6 +140,9 @@ $ tgltrk clients list
 #101 株式会社A
 #102 株式会社B
 
+$ tgltrk clients get 101
+#101 株式会社A
+
 $ tgltrk clients create "新規クライアント"
 ✓ Client created
 #103 新規クライアント
@@ -174,6 +177,9 @@ $ tgltrk tags delete 504
 $ tgltrk workspaces list
 #1234 マイワークスペース
 #5678 チームワークスペース
+
+$ tgltrk workspaces get 1234
+#1234 マイワークスペース
 ```
 
 ### キャッシュ

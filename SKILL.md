@@ -96,12 +96,14 @@ tgltrk entries edit ENTRY_ID [-d "description"] [-p PROJECT_ID] [-t tag1,tag2] [
 | Create project             | `tgltrk projects create "name" [--client CLIENT_ID]`   |
 | Update project             | `tgltrk projects update ID [--name "..."] [--client CLIENT_ID]` |
 | List clients               | `tgltrk clients list`                                  |
+| Get client                 | `tgltrk clients get CLIENT_ID`                         |
 | Create client              | `tgltrk clients create "name"`                         |
 | Update client              | `tgltrk clients update CLIENT_ID --name "new name"`    |
 | Delete client              | `tgltrk clients delete CLIENT_ID`                      |
 | List tags                  | `tgltrk tags list`                                     |
 | Create tag                 | `tgltrk tags create "name"`                            |
 | List workspaces            | `tgltrk workspaces list`                               |
+| Get workspace              | `tgltrk workspaces get WORKSPACE_ID`                   |
 | Cache status               | `tgltrk cache status`                                  |
 | Clear cache                | `tgltrk cache clear`                                   |
 

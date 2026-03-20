@@ -140,6 +140,9 @@ $ tgltrk clients list
 #101 Acme Corp
 #102 Globex Inc
 
+$ tgltrk clients get 101
+#101 Acme Corp
+
 $ tgltrk clients create "New Client"
 ✓ Client created
 #103 New Client
@@ -174,6 +177,9 @@ $ tgltrk tags delete 504
 $ tgltrk workspaces list
 #1234 My Workspace
 #5678 Team Workspace
+
+$ tgltrk workspaces get 1234
+#1234 My Workspace
 ```
 
 ### Cache
