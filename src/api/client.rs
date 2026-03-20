@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::constants::{API_BASE_URL, API_TIMEOUT_SECS};
 use crate::error::{AppError, Result};
-use crate::models::{Project, Tag, TimeEntry, User};
+use crate::models::{Project, Tag, TagId, TimeEntry, User};
 
 use super::wire::{
     CreateProjectRequest, CreateTagRequest, CreateTimeEntryRequest, UpdateProjectRequest,
@@ -93,8 +93,8 @@ pub trait ApiClient {
     async fn delete_project(&self, workspace_id: i64, project_id: i64) -> Result<()>;
     async fn list_tags(&self, workspace_id: i64) -> Result<Vec<Tag>>;
     async fn create_tag(&self, workspace_id: i64, name: &str) -> Result<Tag>;
-    async fn update_tag(&self, workspace_id: i64, tag_id: i64, name: &str) -> Result<Tag>;
-    async fn delete_tag(&self, workspace_id: i64, tag_id: i64) -> Result<()>;
+    async fn update_tag(&self, workspace_id: i64, tag_id: TagId, name: &str) -> Result<Tag>;
+    async fn delete_tag(&self, workspace_id: i64, tag_id: TagId) -> Result<()>;
 }
 
 pub struct TogglClient {
@@ -353,7 +353,7 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn update_tag(&self, workspace_id: i64, tag_id: i64, name: &str) -> Result<Tag> {
+    async fn update_tag(&self, workspace_id: i64, tag_id: TagId, name: &str) -> Result<Tag> {
         let url = format!("{}/workspaces/{workspace_id}/tags/{tag_id}", self.base_url);
         let body = UpdateTagRequest {
             name: name.to_string(),
@@ -362,7 +362,7 @@ impl ApiClient for TogglClient {
         Ok(wire.into())
     }
 
-    async fn delete_tag(&self, workspace_id: i64, tag_id: i64) -> Result<()> {
+    async fn delete_tag(&self, workspace_id: i64, tag_id: TagId) -> Result<()> {
         let url = format!("{}/workspaces/{workspace_id}/tags/{tag_id}", self.base_url);
         self.delete_request(&url).await
     }
@@ -715,7 +715,7 @@ mod tests {
 
         let tags = client.list_tags(1).await.unwrap();
         assert_eq!(tags.len(), 1);
-        assert_eq!(tags[0].id, 5);
+        assert_eq!(tags[0].id, TagId(5));
     }
 
     #[tokio::test]
@@ -728,7 +728,7 @@ mod tests {
             .await;
 
         let tag = client.create_tag(1, "New Tag").await.unwrap();
-        assert_eq!(tag.id, 6);
+        assert_eq!(tag.id, TagId(6));
     }
 
     #[tokio::test]
@@ -740,8 +740,8 @@ mod tests {
             .mount(&server)
             .await;
 
-        let tag = client.update_tag(1, 5, "Renamed").await.unwrap();
-        assert_eq!(tag.id, 5);
+        let tag = client.update_tag(1, TagId(5), "Renamed").await.unwrap();
+        assert_eq!(tag.id, TagId(5));
     }
 
     #[tokio::test]
@@ -753,7 +753,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = client.delete_tag(1, 5).await;
+        let result = client.delete_tag(1, TagId(5)).await;
         assert!(result.is_ok());
     }
 
@@ -852,7 +852,7 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = client.delete_tag(1, 1).await;
+        let result = client.delete_tag(1, TagId(1)).await;
         assert!(result.is_err());
         match result.unwrap_err() {
             AppError::HttpStatus { status, .. } => assert_eq!(status, 404),

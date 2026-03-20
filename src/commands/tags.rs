@@ -1,4 +1,5 @@
 use crate::api::client::ApiClient;
+use crate::models::TagId;
 use crate::cli::TagsAction;
 use crate::commands::{
     CacheHits, build_client, cached_fetch, invalidate_cache, resolve_workspace_id,
@@ -31,8 +32,10 @@ async fn run(
     match action {
         TagsAction::List => list(json, wid, client, &mut hits).await,
         TagsAction::Create { name } => create(json, wid, &name, client, &hits).await,
-        TagsAction::Update { id, name } => update(json, wid, id, &name, client, &hits).await,
-        TagsAction::Delete { id } => delete(json, wid, id, client, &hits).await,
+        TagsAction::Update { id, name } => {
+            update(json, wid, TagId(id), &name, client, &hits).await
+        }
+        TagsAction::Delete { id } => delete(json, wid, TagId(id), client, &hits).await,
     }
 }
 
@@ -62,7 +65,7 @@ async fn create(
 async fn update(
     json: bool,
     wid: i64,
-    id: i64,
+    id: TagId,
     name: &str,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
@@ -75,7 +78,7 @@ async fn update(
 async fn delete(
     json: bool,
     wid: i64,
-    id: i64,
+    id: TagId,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
@@ -92,7 +95,7 @@ mod tests {
 
     fn make_tag(id: i64, name: &str) -> Tag {
         Tag {
-            id,
+            id: TagId(id),
             workspace_id: 1,
             name: name.to_string(),
         }
@@ -111,7 +114,7 @@ mod tests {
     async fn delete_tag_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_delete_tag()
-            .withf(|wid, tid| *wid == 1 && *tid == 3)
+            .withf(|wid, tid| *wid == 1 && *tid == TagId(3))
             .returning(|_, _| Ok(()));
         let result = run(TagsAction::Delete { id: 3 }, false, Some(1), &mock).await;
         assert!(result.is_ok());
@@ -155,7 +158,7 @@ mod tests {
     async fn update_tag_calls_api() {
         let mut mock = MockApiClient::new();
         mock.expect_update_tag()
-            .withf(|wid, tid, _| *wid == 1 && *tid == 5)
+            .withf(|wid, tid, _| *wid == 1 && *tid == TagId(5))
             .returning(|_, _, _| Ok(make_tag(5, "renamed")));
         let result = run(
             TagsAction::Update {
