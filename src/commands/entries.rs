@@ -184,6 +184,11 @@ async fn create(
         (Some(s), None) => {
             let stop = parse_datetime(&s)?;
             let dur = (stop - start).num_seconds();
+            if dur <= 0 {
+                return Err(AppError::InvalidInput(
+                    "stop must be after start".to_string(),
+                ));
+            }
             (Some(stop), Some(dur))
         }
         (None, Some(d)) => {
@@ -231,6 +236,11 @@ async fn edit(
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
+    if stop_str.is_some() && duration_str.is_some() {
+        return Err(AppError::InvalidInput(
+            "specify --stop or --duration, not both".to_string(),
+        ));
+    }
     let start = start_str.map(|s| parse_datetime(&s)).transpose()?;
     let stop = stop_str.map(|s| parse_datetime(&s)).transpose()?;
     let duration = duration_str.map(|s| parse_duration_str(&s)).transpose()?;
@@ -520,5 +530,82 @@ mod tests {
         // SAFETY: test is single-threaded for env var access
         unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
         assert!(result.is_ok());
+    }
+
+    // --- parse_datetime tests ---
+
+    #[test]
+    fn parse_datetime_utc_format() {
+        let dt = super::parse_datetime("2026-03-20T09:00:00Z").unwrap();
+        assert_eq!(dt.to_rfc3339(), "2026-03-20T09:00:00+00:00");
+    }
+
+    #[test]
+    fn parse_datetime_local_t_separator() {
+        let dt = super::parse_datetime("2026-03-20T09:00").unwrap();
+        // Should parse without error (exact UTC value depends on local TZ)
+        assert_eq!(dt.format("%Y-%m-%d").to_string(), "2026-03-20");
+    }
+
+    #[test]
+    fn parse_datetime_local_space_separator() {
+        let dt = super::parse_datetime("2026-03-20 09:00").unwrap();
+        assert_eq!(dt.format("%Y-%m-%d").to_string(), "2026-03-20");
+    }
+
+    #[test]
+    fn parse_datetime_with_seconds() {
+        let dt = super::parse_datetime("2026-03-20T09:30:45").unwrap();
+        assert_eq!(dt.format("%Y-%m-%d").to_string(), "2026-03-20");
+    }
+
+    #[test]
+    fn parse_datetime_invalid_input() {
+        assert!(super::parse_datetime("not-a-date").is_err());
+        assert!(super::parse_datetime("").is_err());
+        assert!(super::parse_datetime("2026-13-01 00:00").is_err());
+    }
+
+    // --- parse_duration_str tests ---
+
+    #[test]
+    fn parse_duration_str_hours_and_minutes() {
+        assert_eq!(super::parse_duration_str("1h30m").unwrap(), 5400);
+    }
+
+    #[test]
+    fn parse_duration_str_minutes_only() {
+        assert_eq!(super::parse_duration_str("90m").unwrap(), 5400);
+    }
+
+    #[test]
+    fn parse_duration_str_seconds_only() {
+        assert_eq!(super::parse_duration_str("30s").unwrap(), 30);
+    }
+
+    #[test]
+    fn parse_duration_str_pure_number() {
+        assert_eq!(super::parse_duration_str("5400").unwrap(), 5400);
+    }
+
+    #[test]
+    fn parse_duration_str_zero_rejected() {
+        assert!(super::parse_duration_str("0m").is_err());
+        assert!(super::parse_duration_str("0h").is_err());
+    }
+
+    #[test]
+    fn parse_duration_str_invalid_input() {
+        assert!(super::parse_duration_str("abc").is_err());
+        assert!(super::parse_duration_str("1x").is_err());
+        assert!(super::parse_duration_str("").is_err());
+    }
+
+    #[test]
+    fn parse_duration_str_trailing_number_rejected() {
+        // "90" without unit should be treated as pure seconds
+        assert_eq!(super::parse_duration_str("90").unwrap(), 90);
+        // "1h30" has trailing number without unit
+        assert!(super::parse_duration_str("1h30").is_err());
     }
 }

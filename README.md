@@ -16,7 +16,7 @@ Download a prebuilt binary for your platform from [Releases](https://github.com/
 
 Supported platforms:
 - Linux (x86_64)
-- macOS (Apple Silicon / Intel)
+- macOS (Apple Silicon)
 - Windows (x86_64)
 
 ### Build from source

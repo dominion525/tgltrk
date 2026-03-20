@@ -43,10 +43,11 @@ impl CredentialStore for KeyringStore {
     }
 
     fn clear(&self) -> Result<()> {
-        self.entry
-            .delete_credential()
-            .map_err(|e| AppError::Keyring(format!("Failed to clear token: {e}")))?;
-        Ok(())
+        match self.entry.delete_credential() {
+            Ok(()) => Ok(()),
+            Err(keyring::Error::NoEntry) => Ok(()),
+            Err(e) => Err(AppError::Keyring(format!("Failed to clear token: {e}"))),
+        }
     }
 }
 
@@ -76,7 +77,9 @@ impl CredentialStore for EnvStore {
 
 pub fn get_store() -> Result<Box<dyn CredentialStore>> {
     if let Ok(token) = std::env::var(ENV_API_TOKEN) {
-        return Ok(Box::new(EnvStore { token }));
+        if !token.trim().is_empty() {
+            return Ok(Box::new(EnvStore { token }));
+        }
     }
     let store = KeyringStore::new().map_err(|e| {
         AppError::Keyring(format!(

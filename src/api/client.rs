@@ -288,7 +288,7 @@ impl ApiClient for TogglClient {
         let url = format!("{}/workspaces/{workspace_id}/time_entries", self.base_url);
         let now = Utc::now();
         let start = params.start.unwrap_or(now);
-        let duration = params.duration.unwrap_or(-now.timestamp());
+        let duration = params.duration.unwrap_or(-start.timestamp());
         let body = CreateTimeEntryRequest {
             workspace_id,
             description: params.description.clone(),

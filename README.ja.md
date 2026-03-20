@@ -16,7 +16,7 @@
 
 対応プラットフォーム:
 - Linux (x86_64)
-- macOS (Apple Silicon / Intel)
+- macOS (Apple Silicon)
 - Windows (x86_64)
 
 ### ソースからビルド
