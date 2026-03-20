@@ -87,6 +87,9 @@ async fn start(
         task_id: task,
         tags: tags.unwrap_or_default(),
         billable,
+        start: None,
+        stop: None,
+        duration: None,
     };
     let entry = client.create_time_entry(workspace_id, &params).await?;
     output::print_success(&mut std::io::stdout(), &entry, json, "Timer started", hits)

@@ -110,6 +110,8 @@ pub struct CreateTimeEntryRequest {
     pub start: DateTime<Utc>,
     pub duration: i64,
     pub created_with: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -122,6 +124,12 @@ pub struct UpdateTimeEntryRequest {
     pub tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub billable: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub start: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stop: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration: Option<i64>,
 }
 
 #[derive(Debug, Serialize)]

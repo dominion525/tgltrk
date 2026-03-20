@@ -120,6 +120,33 @@ pub enum EntriesAction {
         /// Time entry ID
         id: i64,
     },
+    /// Create a time entry with specific start/stop times
+    Create {
+        /// Description
+        #[arg(short, long)]
+        description: Option<String>,
+        /// Project ID
+        #[arg(short, long)]
+        project: Option<i64>,
+        /// Task ID
+        #[arg(long)]
+        task: Option<i64>,
+        /// Tags (comma-separated)
+        #[arg(short, long, value_delimiter = ',')]
+        tags: Option<Vec<String>>,
+        /// Billable
+        #[arg(short, long)]
+        billable: bool,
+        /// Start time (e.g. "2026-03-20T09:00", "2026-03-20 09:00")
+        #[arg(long)]
+        start: String,
+        /// Stop time (provide --stop or --duration, not both)
+        #[arg(long)]
+        stop: Option<String>,
+        /// Duration (e.g. "1h30m", "90m", "5400")
+        #[arg(long)]
+        duration: Option<String>,
+    },
     /// Edit a time entry
     Edit {
         /// Time entry ID
@@ -136,6 +163,15 @@ pub enum EntriesAction {
         /// Billable
         #[arg(short, long)]
         billable: Option<bool>,
+        /// Start time
+        #[arg(long)]
+        start: Option<String>,
+        /// Stop time
+        #[arg(long)]
+        stop: Option<String>,
+        /// Duration (e.g. "1h30m", "90m", "5400")
+        #[arg(long)]
+        duration: Option<String>,
     },
     /// Delete a time entry
     Delete {

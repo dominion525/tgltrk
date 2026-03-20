@@ -1,9 +1,71 @@
+use chrono::{DateTime, Local, NaiveDateTime, Utc};
+
 use crate::api::client::{ApiClient, CreateTimeEntryParams, UpdateTimeEntryParams};
 use crate::cli::EntriesAction;
 use crate::commands::{CacheHits, build_client, resolve_workspace_id};
-use crate::error::Result;
-use crate::models::{TimeEntryId, WorkspaceId};
+use crate::error::{AppError, Result};
+use crate::models::{TaskId, TimeEntryId, WorkspaceId};
 use crate::output;
+
+fn parse_datetime(s: &str) -> Result<DateTime<Utc>> {
+    // Try UTC format first: "2026-03-20T09:00:00Z"
+    if let Ok(dt) = s.parse::<DateTime<Utc>>() {
+        return Ok(dt);
+    }
+    // Try local time formats: "2026-03-20T09:00" or "2026-03-20 09:00"
+    let normalized = s.replace(' ', "T");
+    let naive = NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H:%M")
+        .or_else(|_| NaiveDateTime::parse_from_str(&normalized, "%Y-%m-%dT%H:%M:%S"))
+        .map_err(|_| {
+            AppError::InvalidInput(format!(
+                "Invalid datetime: '{s}' (expected YYYY-MM-DD HH:MM or YYYY-MM-DDTHH:MM)"
+            ))
+        })?;
+    let local = naive
+        .and_local_timezone(Local)
+        .single()
+        .ok_or_else(|| AppError::InvalidInput(format!("Ambiguous local time: '{s}'")))?;
+    Ok(local.with_timezone(&Utc))
+}
+
+fn parse_duration_str(s: &str) -> Result<i64> {
+    let s = s.trim();
+    // Pure number → seconds
+    if let Ok(secs) = s.parse::<i64>() {
+        return Ok(secs);
+    }
+    let mut total: i64 = 0;
+    let mut num_buf = String::new();
+    for ch in s.chars() {
+        if ch.is_ascii_digit() {
+            num_buf.push(ch);
+        } else {
+            let n: i64 = num_buf.parse().map_err(|_| {
+                AppError::InvalidInput(format!("Invalid duration: '{s}'"))
+            })?;
+            num_buf.clear();
+            match ch {
+                'h' | 'H' => total += n * 3600,
+                'm' | 'M' => total += n * 60,
+                's' | 'S' => total += n,
+                _ => {
+                    return Err(AppError::InvalidInput(format!(
+                        "Invalid duration unit '{ch}' in '{s}' (expected h, m, or s)"
+                    )))
+                }
+            }
+        }
+    }
+    if !num_buf.is_empty() {
+        return Err(AppError::InvalidInput(format!(
+            "Invalid duration: '{s}' (trailing number without unit, use e.g. '90m' or '1h30m')"
+        )));
+    }
+    if total == 0 {
+        return Err(AppError::InvalidInput(format!("Duration must be positive: '{s}'")));
+    }
+    Ok(total)
+}
 
 pub async fn execute(action: EntriesAction, json: bool, workspace: Option<i64>) -> Result<()> {
     execute_with_base_url(action, json, workspace, None).await
@@ -33,24 +95,37 @@ async fn run(
             count,
         } => list(json, since, until, count, client, &hits).await,
         EntriesAction::Get { id } => get(json, TimeEntryId(id), client, &hits).await,
+        EntriesAction::Create {
+            description,
+            project,
+            task,
+            tags,
+            billable,
+            start,
+            stop,
+            duration,
+        } => {
+            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+            create(
+                json, wid, description, project, task, tags, billable, start, stop, duration,
+                client, &hits,
+            )
+            .await
+        }
         EntriesAction::Edit {
             id,
             description,
             project,
             tags,
             billable,
+            start,
+            stop,
+            duration,
         } => {
             let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
             edit(
-                json,
-                wid,
-                TimeEntryId(id),
-                description,
-                project,
-                tags,
-                billable,
-                client,
-                &hits,
+                json, wid, TimeEntryId(id), description, project, tags, billable, start, stop,
+                duration, client, &hits,
             )
             .await
         }
@@ -90,6 +165,58 @@ async fn get(
 }
 
 #[allow(clippy::too_many_arguments)]
+async fn create(
+    json: bool,
+    workspace_id: WorkspaceId,
+    description: Option<String>,
+    project: Option<i64>,
+    task: Option<i64>,
+    tags: Option<Vec<String>>,
+    billable: bool,
+    start_str: String,
+    stop_str: Option<String>,
+    duration_str: Option<String>,
+    client: &(impl ApiClient + ?Sized),
+    hits: &CacheHits,
+) -> Result<()> {
+    let start = parse_datetime(&start_str)?;
+    let (stop, duration) = match (stop_str, duration_str) {
+        (Some(s), None) => {
+            let stop = parse_datetime(&s)?;
+            let dur = (stop - start).num_seconds();
+            (Some(stop), Some(dur))
+        }
+        (None, Some(d)) => {
+            let dur = parse_duration_str(&d)?;
+            let stop = start + chrono::TimeDelta::seconds(dur);
+            (Some(stop), Some(dur))
+        }
+        (None, None) => {
+            return Err(AppError::InvalidInput(
+                "--stop or --duration is required for entries create".to_string(),
+            ))
+        }
+        (Some(_), Some(_)) => {
+            return Err(AppError::InvalidInput(
+                "specify --stop or --duration, not both".to_string(),
+            ))
+        }
+    };
+    let params = CreateTimeEntryParams {
+        description,
+        project_id: project,
+        task_id: task.map(TaskId),
+        tags: tags.unwrap_or_default(),
+        billable,
+        start: Some(start),
+        stop,
+        duration,
+    };
+    let entry = client.create_time_entry(workspace_id, &params).await?;
+    output::print_success(&mut std::io::stdout(), &entry, json, "Entry created", hits)
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn edit(
     json: bool,
     workspace_id: WorkspaceId,
@@ -98,14 +225,23 @@ async fn edit(
     project: Option<i64>,
     tags: Option<Vec<String>>,
     billable: Option<bool>,
+    start_str: Option<String>,
+    stop_str: Option<String>,
+    duration_str: Option<String>,
     client: &(impl ApiClient + ?Sized),
     hits: &CacheHits,
 ) -> Result<()> {
+    let start = start_str.map(|s| parse_datetime(&s)).transpose()?;
+    let stop = stop_str.map(|s| parse_datetime(&s)).transpose()?;
+    let duration = duration_str.map(|s| parse_duration_str(&s)).transpose()?;
     let params = UpdateTimeEntryParams {
         description,
         project_id: project,
         tags,
         billable,
+        start,
+        stop,
+        duration,
     };
     let entry = client
         .update_time_entry(workspace_id, entry_id, &params)
@@ -290,6 +426,9 @@ mod tests {
                 project: None,
                 tags: None,
                 billable: Some(true),
+                start: None,
+                stop: None,
+                duration: None,
             },
             false,
             Some(1),
@@ -311,6 +450,9 @@ mod tests {
                 project: None,
                 tags: None,
                 billable: None,
+                start: None,
+                stop: None,
+                duration: None,
             },
             true,
             Some(1),

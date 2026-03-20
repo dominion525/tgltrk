@@ -1,4 +1,5 @@
 use base64::{Engine as _, engine::general_purpose};
+use chrono::{DateTime, Utc};
 use reqwest::{Client, RequestBuilder, header};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
@@ -27,6 +28,9 @@ pub struct CreateTimeEntryParams {
     pub task_id: Option<TaskId>,
     pub tags: Vec<String>,
     pub billable: bool,
+    pub start: Option<DateTime<Utc>>,
+    pub stop: Option<DateTime<Utc>>,
+    pub duration: Option<i64>,
 }
 
 impl From<&TimeEntry> for CreateTimeEntryParams {
@@ -37,6 +41,9 @@ impl From<&TimeEntry> for CreateTimeEntryParams {
             task_id: entry.task_id,
             tags: entry.tags.clone(),
             billable: entry.billable,
+            start: None,
+            stop: None,
+            duration: None,
         }
     }
 }
@@ -46,6 +53,9 @@ pub struct UpdateTimeEntryParams {
     pub project_id: Option<i64>,
     pub tags: Option<Vec<String>>,
     pub billable: Option<bool>,
+    pub start: Option<DateTime<Utc>>,
+    pub stop: Option<DateTime<Utc>>,
+    pub duration: Option<i64>,
 }
 
 pub struct CreateProjectParams {
@@ -246,7 +256,9 @@ impl ApiClient for TogglClient {
         params: &CreateTimeEntryParams,
     ) -> Result<TimeEntry> {
         let url = format!("{}/workspaces/{workspace_id}/time_entries", self.base_url);
-        let now = chrono::Utc::now();
+        let now = Utc::now();
+        let start = params.start.unwrap_or(now);
+        let duration = params.duration.unwrap_or(-now.timestamp());
         let body = CreateTimeEntryRequest {
             workspace_id,
             description: params.description.clone(),
@@ -254,9 +266,10 @@ impl ApiClient for TogglClient {
             task_id: params.task_id,
             tags: params.tags.clone(),
             billable: params.billable,
-            start: now,
-            duration: -now.timestamp(),
+            start,
+            duration,
             created_with: crate::constants::CLIENT_NAME.to_string(),
+            stop: params.stop,
         };
         let wire: WireTimeEntry = self.post(&url, &body).await?;
         Ok(wire.into())
@@ -277,6 +290,9 @@ impl ApiClient for TogglClient {
             project_id: params.project_id,
             tags: params.tags.clone(),
             billable: params.billable,
+            start: params.start,
+            stop: params.stop,
+            duration: params.duration,
         };
         let wire: WireTimeEntry = self.put(&url, &body).await?;
         Ok(wire.into())
@@ -599,6 +615,9 @@ mod tests {
             task_id: None,
             tags: vec![],
             billable: false,
+            start: None,
+            stop: None,
+            duration: None,
         };
         let entry = client
             .create_time_entry(WorkspaceId(1), &params)
@@ -623,6 +642,9 @@ mod tests {
             project_id: None,
             tags: None,
             billable: None,
+            start: None,
+            stop: None,
+            duration: None,
         };
         let entry = client
             .update_time_entry(WorkspaceId(1), TimeEntryId(42), &params)
