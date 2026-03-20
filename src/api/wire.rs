@@ -66,6 +66,7 @@ pub struct WireProject {
     pub active: bool,
     pub color: String,
     pub billable: Option<bool>,
+    pub client_id: Option<i64>,
 }
 
 impl From<WireProject> for Project {
@@ -77,6 +78,7 @@ impl From<WireProject> for Project {
             active: w.active,
             color: w.color,
             billable: w.billable,
+            client_id: w.client_id.map(ClientId),
         }
     }
 }
@@ -270,6 +272,7 @@ mod tests {
             active: true,
             color: "#fff".to_string(),
             billable: Some(true),
+            client_id: None,
         };
         let p: Project = w.into();
         assert_eq!(p.id, ProjectId(5));

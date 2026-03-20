@@ -3,7 +3,7 @@ use std::fmt;
 
 use super::WorkspaceId;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct ClientId(pub i64);
 
 impl fmt::Display for ClientId {

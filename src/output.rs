@@ -26,7 +26,7 @@ fn make_envelope<T: Serialize>(data: T, hits: &CacheHits) -> JsonEnvelope<T> {
     }
 }
 
-fn write_cache_hits_text(w: &mut impl Write, hits: &CacheHits) -> std::io::Result<()> {
+pub fn write_cache_hits_text(w: &mut impl Write, hits: &CacheHits) -> std::io::Result<()> {
     for entity in hits.entities() {
         writeln!(w, "{}", format!("(cached: {entity})").dimmed())?;
     }

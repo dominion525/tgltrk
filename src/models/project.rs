@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::WorkspaceId;
+use super::{ClientId, WorkspaceId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ProjectId(pub i64);
@@ -20,6 +20,7 @@ pub struct Project {
     pub active: bool,
     pub color: String,
     pub billable: Option<bool>,
+    pub client_id: Option<ClientId>,
 }
 
 impl fmt::Display for Project {
@@ -41,6 +42,7 @@ mod tests {
             active,
             color: "#fff".to_string(),
             billable: None,
+            client_id: None,
         }
     }
 

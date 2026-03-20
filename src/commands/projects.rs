@@ -1,10 +1,13 @@
+use std::collections::HashMap;
+use std::io::Write;
+
 use crate::api::client::{ApiClient, CreateProjectParams, UpdateProjectParams};
 use crate::cli::ProjectsAction;
 use crate::commands::{
     CacheHits, build_client, cached_fetch, invalidate_cache, resolve_workspace_id,
 };
 use crate::error::Result;
-use crate::models::{ProjectId, WorkspaceId};
+use crate::models::{ClientId, ProjectId, WorkspaceId};
 use crate::output;
 
 pub async fn execute(action: ProjectsAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -48,7 +51,25 @@ async fn list(
 ) -> Result<()> {
     let key = format!("projects_{wid}");
     let projects = cached_fetch(&key, hits, client.list_projects(wid)).await?;
-    output::print_list(&mut std::io::stdout(), &projects, json, hits)
+    if json {
+        return output::print_list(&mut std::io::stdout(), &projects, json, hits);
+    }
+    let client_key = format!("clients_{wid}");
+    let clients = cached_fetch(&client_key, hits, client.list_clients(wid)).await?;
+    let client_map: HashMap<ClientId, String> =
+        clients.iter().map(|c| (c.id, c.name.clone())).collect();
+    let w = &mut std::io::stdout();
+    output::write_cache_hits_text(w, hits)?;
+    for p in &projects {
+        let client_name = p
+            .client_id
+            .and_then(|cid| client_map.get(&cid))
+            .map(|n| format!(" [{n}]"))
+            .unwrap_or_default();
+        let status = if p.active { "" } else { " (archived)" };
+        writeln!(w, "#{} {}{}{}", p.id, p.name, client_name, status)?;
+    }
+    Ok(())
 }
 
 async fn get(
@@ -134,6 +155,7 @@ mod tests {
             active: true,
             color: "#06aaf5".to_string(),
             billable: None,
+            client_id: None,
         }
     }
 
@@ -146,6 +168,7 @@ mod tests {
                 make_project(2, "Project B"),
             ])
         });
+        mock.expect_list_clients().returning(|_| Ok(vec![]));
         let result = run(ProjectsAction::List, false, Some(1), &mock).await;
         assert!(result.is_ok());
     }
@@ -276,6 +299,14 @@ mod tests {
                     "id": 1, "workspace_id": 1, "name": "P",
                     "active": true, "color": "#fff", "billable": null
                 }])),
+            )
+            .mount(&server)
+            .await;
+
+        Mock::given(method("GET"))
+            .and(path("/workspaces/1/clients"))
+            .respond_with(
+                ResponseTemplate::new(200).set_body_json(serde_json::json!([])),
             )
             .mount(&server)
             .await;
