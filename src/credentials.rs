@@ -28,10 +28,12 @@ impl KeyringStore {
 
 impl CredentialStore for KeyringStore {
     fn read(&self) -> Result<Credential> {
-        let api_token = self
-            .entry
-            .get_password()
-            .map_err(|e| AppError::Auth(format!("No saved token: {e}")))?;
+        let api_token = self.entry.get_password().map_err(|e| match &e {
+            keyring::Error::NoEntry => {
+                AppError::Auth("No saved token. Run `tgltrk auth login` first.".to_string())
+            }
+            _ => AppError::Keyring(format!("Failed to read token: {e}")),
+        })?;
         Ok(Credential { api_token })
     }
 

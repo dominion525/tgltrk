@@ -16,6 +16,11 @@ pub async fn execute(action: AuthAction) -> Result<()> {
                         .map_err(|e| AppError::Auth(format!("Failed to read token: {e}")))?
                 }
             };
+            if token.trim().is_empty() {
+                return Err(AppError::InvalidInput(
+                    "API token cannot be empty".to_string(),
+                ));
+            }
             login(&token).await
         }
         AuthAction::Clear => clear(),

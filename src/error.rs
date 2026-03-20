@@ -3,7 +3,6 @@ use std::fmt;
 pub type Result<T> = std::result::Result<T, AppError>;
 
 #[derive(Debug)]
-#[allow(dead_code)]
 pub enum AppError {
     Api(String),
     HttpStatus { status: u16, body: String },

@@ -249,10 +249,11 @@ impl ApiClient for TogglClient {
             });
         }
         let text = response.text().await?;
+        let text = text.trim();
         if text == "null" || text.is_empty() {
             return Ok(None);
         }
-        let wire: WireTimeEntry = serde_json::from_str(&text)?;
+        let wire: WireTimeEntry = serde_json::from_str(text)?;
         Ok(Some(wire.into()))
     }
 

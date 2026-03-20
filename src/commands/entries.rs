@@ -44,10 +44,22 @@ fn parse_duration_str(s: &str) -> Result<i64> {
                 AppError::InvalidInput(format!("Invalid duration: '{s}'"))
             })?;
             num_buf.clear();
+            let overflow_err =
+                || AppError::InvalidInput(format!("Duration overflow: '{s}'"));
             match ch {
-                'h' | 'H' => total += n * 3600,
-                'm' | 'M' => total += n * 60,
-                's' | 'S' => total += n,
+                'h' | 'H' => {
+                    total = total
+                        .checked_add(n.checked_mul(3600).ok_or_else(overflow_err)?)
+                        .ok_or_else(overflow_err)?;
+                }
+                'm' | 'M' => {
+                    total = total
+                        .checked_add(n.checked_mul(60).ok_or_else(overflow_err)?)
+                        .ok_or_else(overflow_err)?;
+                }
+                's' | 'S' => {
+                    total = total.checked_add(n).ok_or_else(overflow_err)?;
+                }
                 _ => {
                     return Err(AppError::InvalidInput(format!(
                         "Invalid duration unit '{ch}' in '{s}' (expected h, m, or s)"
@@ -148,6 +160,7 @@ async fn list(
     hits: &CacheHits,
 ) -> Result<()> {
     let mut entries = client.get_time_entries(since, until).await?;
+    entries.sort_by_key(|e| std::cmp::Reverse(e.start));
     if let Some(n) = count {
         entries.truncate(n);
     }
