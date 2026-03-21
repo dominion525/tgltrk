@@ -223,6 +223,8 @@ JSON 出力にはキャッシュヒット情報がメタデータとして含ま
 
 API トークンは OS のネイティブキーリング（macOS Keychain / Windows Credential Manager / Linux Secret Service）に保存されます。キーリングが利用できない環境では、環境変数 `TOGGL_API_TOKEN` を使用してください。
 
+**注意:** `TOGGL_API_TOKEN` が設定されている場合、常にキーリングより優先されます。`auth login` や `auth clear` はキーリングに対して動作しますが、API 呼び出しには環境変数のトークンが使われます。
+
 ## 制限事項
 
 - **一括操作**: 複数エントリ・プロジェクトの一括編集・削除は未対応です

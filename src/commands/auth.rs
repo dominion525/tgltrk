@@ -2,7 +2,8 @@ use colored::Colorize;
 
 use crate::api::client::{ApiClient, TogglClient};
 use crate::cli::AuthAction;
-use crate::credentials::{self, CredentialStore};
+use crate::constants::ENV_API_TOKEN;
+use crate::credentials::{self, CredentialStore, KeyringStore};
 use crate::error::{AppError, Result};
 
 pub async fn execute(action: AuthAction) -> Result<()> {
@@ -58,18 +59,33 @@ async fn login(token: &str) -> Result<()> {
     login_with_base_url(token, None).await
 }
 
+fn warn_if_env_override() {
+    if std::env::var(ENV_API_TOKEN)
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
+    {
+        eprintln!(
+            "Note: environment variable {ENV_API_TOKEN} is set and will take precedence over the keyring."
+        );
+    }
+}
+
 pub async fn login_with_base_url(token: &str, base_url: Option<&str>) -> Result<()> {
-    let store = credentials::get_store()?;
+    let store = KeyringStore::new()?;
     let client = match base_url {
         Some(url) => TogglClient::new_with_base_url(token, url)?,
         None => TogglClient::new(token)?,
     };
-    login_inner(token, store.as_ref(), &client).await
+    login_inner(token, &store, &client).await?;
+    warn_if_env_override();
+    Ok(())
 }
 
 fn clear() -> Result<()> {
-    let store = credentials::get_store()?;
-    clear_inner(store.as_ref())
+    let store = KeyringStore::new()?;
+    clear_inner(&store)?;
+    warn_if_env_override();
+    Ok(())
 }
 
 async fn status_inner(client: &(impl ApiClient + ?Sized)) -> Result<()> {
@@ -145,10 +161,7 @@ mod tests {
         use wiremock::matchers::{method, path};
         use wiremock::{Mock, MockServer, ResponseTemplate};
 
-        let _guard = crate::ENV_MUTEX.lock().await;
         let server = MockServer::start().await;
-        // SAFETY: env var access serialized by ENV_MUTEX
-        unsafe { std::env::set_var("TOGGL_API_TOKEN", "test_token") };
 
         Mock::given(method("GET"))
             .and(path("/me"))
@@ -159,12 +172,11 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = login_with_base_url("test_token", Some(&server.uri())).await;
-        // SAFETY: test is single-threaded for env var access
-        unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
-        // EnvStore returns error on save, so this will fail at store.save()
-        // That's expected behavior - the login validates the token but can't save to env store
-        assert!(result.is_err());
+        let client = TogglClient::new_with_base_url("test_token", &server.uri()).unwrap();
+        let mut store = MockCredentialStore::new();
+        store.expect_save().returning(|_| Ok(()));
+        let result = login_inner("test_token", &store, &client).await;
+        assert!(result.is_ok());
     }
 
     #[tokio::test]

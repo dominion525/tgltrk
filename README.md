@@ -223,6 +223,8 @@ JSON output includes cache hit metadata:
 
 API tokens are stored in the OS native keyring (macOS Keychain / Windows Credential Manager / Linux Secret Service). If the keyring is unavailable, use the `TOGGL_API_TOKEN` environment variable instead.
 
+**Note:** When `TOGGL_API_TOKEN` is set, it always takes precedence over the keyring. `auth login` and `auth clear` still operate on the keyring, but the environment variable will be used for API calls.
+
 ## Limitations
 
 - **No bulk operations**: batch edit/delete of multiple entries or projects is not supported
