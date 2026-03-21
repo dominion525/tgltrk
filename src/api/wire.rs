@@ -128,7 +128,7 @@ impl From<WireWorkspace> for Workspace {
 pub struct CreateTimeEntryRequest {
     pub workspace_id: WorkspaceId,
     pub description: Option<String>,
-    pub project_id: Option<i64>,
+    pub project_id: Option<ProjectId>,
     pub task_id: Option<TaskId>,
     pub tags: Vec<String>,
     pub billable: bool,
@@ -144,7 +144,7 @@ pub struct UpdateTimeEntryRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub project_id: Option<i64>,
+    pub project_id: Option<ProjectId>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]

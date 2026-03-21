@@ -293,7 +293,7 @@ impl ApiClient for TogglClient {
         let body = CreateTimeEntryRequest {
             workspace_id,
             description: params.description.clone(),
-            project_id: params.project_id.map(|p| p.0),
+            project_id: params.project_id,
             task_id: params.task_id,
             tags: params.tags.clone(),
             billable: params.billable,
@@ -318,7 +318,7 @@ impl ApiClient for TogglClient {
         );
         let body = UpdateTimeEntryRequest {
             description: params.description.clone(),
-            project_id: params.project_id.map(|p| p.0),
+            project_id: params.project_id,
             tags: params.tags.clone(),
             billable: params.billable,
             start: params.start,
