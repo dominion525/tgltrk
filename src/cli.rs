@@ -193,7 +193,7 @@ pub enum EntriesAction {
         /// Time entry ID
         id: i64,
     },
-    /// Continue a previous time entry
+    /// Continue a previous time entry (uses the original entry's workspace)
     Continue {
         /// Time entry ID to continue
         id: i64,
