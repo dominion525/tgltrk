@@ -41,9 +41,7 @@ pub async fn run_cli(cli: Cli) -> error::Result<()> {
                 Command::Projects { action } => commands::projects::run(action, &mut ctx).await,
                 Command::Tags { action } => commands::tags::run(action, &mut ctx).await,
                 Command::Clients { action } => commands::clients::run(action, &mut ctx).await,
-                Command::Workspaces { action } => {
-                    commands::workspaces::run(action, &mut ctx).await
-                }
+                Command::Workspaces { action } => commands::workspaces::run(action, &mut ctx).await,
                 Command::Auth { .. } | Command::Cache { .. } => unreachable!(),
             }
         }

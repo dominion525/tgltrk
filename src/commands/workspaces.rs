@@ -21,10 +21,7 @@ async fn list(ctx: &mut CommandContext<'_, impl ApiClient>) -> Result<()> {
     output::print_list(&mut std::io::stdout(), &workspaces, ctx.json, ctx.hits())
 }
 
-async fn get(
-    id: WorkspaceId,
-    ctx: &CommandContext<'_, impl ApiClient>,
-) -> Result<()> {
+async fn get(id: WorkspaceId, ctx: &CommandContext<'_, impl ApiClient>) -> Result<()> {
     let ws = ctx.client.get_workspace(id).await?;
     output::print_result(&mut std::io::stdout(), &ws, ctx.json, ctx.hits())
 }
@@ -46,8 +43,12 @@ mod tests {
     #[tokio::test]
     async fn list_workspaces_displays_all() {
         let mut mock = MockApiClient::new();
-        mock.expect_list_workspaces()
-            .returning(|| Ok(vec![make_workspace(1, "Personal"), make_workspace(2, "Team")]));
+        mock.expect_list_workspaces().returning(|| {
+            Ok(vec![
+                make_workspace(1, "Personal"),
+                make_workspace(2, "Team"),
+            ])
+        });
         let mut ctx = CommandContext::new(&mock, false, None);
         let result = run(WorkspacesAction::List, &mut ctx).await;
         assert!(result.is_ok());

@@ -16,9 +16,7 @@ pub async fn run(
     match action {
         ProjectsAction::List => list(wid, ctx).await,
         ProjectsAction::Get { id } => get(wid, ProjectId(id), ctx).await,
-        ProjectsAction::Create { name, client: cid } => {
-            create(wid, &name, cid, ctx).await
-        }
+        ProjectsAction::Create { name, client: cid } => create(wid, &name, cid, ctx).await,
         ProjectsAction::Update {
             id,
             name,
@@ -28,10 +26,7 @@ pub async fn run(
     }
 }
 
-async fn list(
-    wid: WorkspaceId,
-    ctx: &mut CommandContext<'_, impl ApiClient>,
-) -> Result<()> {
+async fn list(wid: WorkspaceId, ctx: &mut CommandContext<'_, impl ApiClient>) -> Result<()> {
     let key = format!("projects_{wid}");
     let fut = ctx.client.list_projects(wid);
     let projects = ctx.cached_fetch(&key, fut).await?;
@@ -297,9 +292,7 @@ mod tests {
 
         Mock::given(method("GET"))
             .and(path("/workspaces/1/clients"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(serde_json::json!([])),
-            )
+            .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!([])))
             .mount(&server)
             .await;
 

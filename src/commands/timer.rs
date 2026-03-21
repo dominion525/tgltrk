@@ -7,10 +7,7 @@ use crate::error::{AppError, Result};
 use crate::models::{ProjectId, TaskId, WorkspaceId};
 use crate::output;
 
-pub async fn run(
-    action: TimerAction,
-    ctx: &mut CommandContext<'_, impl ApiClient>,
-) -> Result<()> {
+pub async fn run(action: TimerAction, ctx: &mut CommandContext<'_, impl ApiClient>) -> Result<()> {
     match action {
         TimerAction::Current => current(ctx).await,
         TimerAction::Start {
@@ -71,7 +68,13 @@ async fn start(
         duration: None,
     };
     let entry = ctx.client.create_time_entry(workspace_id, &params).await?;
-    output::print_success(&mut std::io::stdout(), &entry, ctx.json, "Timer started", ctx.hits())
+    output::print_success(
+        &mut std::io::stdout(),
+        &entry,
+        ctx.json,
+        "Timer started",
+        ctx.hits(),
+    )
 }
 
 async fn stop(ctx: &CommandContext<'_, impl ApiClient>) -> Result<()> {
@@ -81,9 +84,18 @@ async fn stop(ctx: &CommandContext<'_, impl ApiClient>) -> Result<()> {
         .await?
         .ok_or_else(|| AppError::NotFound("No running timer".to_string()))?;
 
-    let wid = ctx.workspace.map(WorkspaceId).unwrap_or(current.workspace_id);
+    let wid = ctx
+        .workspace
+        .map(WorkspaceId)
+        .unwrap_or(current.workspace_id);
     let entry = ctx.client.stop_time_entry(wid, current.id).await?;
-    output::print_success(&mut std::io::stdout(), &entry, ctx.json, "Timer stopped", ctx.hits())
+    output::print_success(
+        &mut std::io::stdout(),
+        &entry,
+        ctx.json,
+        "Timer stopped",
+        ctx.hits(),
+    )
 }
 
 #[cfg(test)]

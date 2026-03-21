@@ -40,12 +40,11 @@ fn parse_duration_str(s: &str) -> Result<i64> {
         if ch.is_ascii_digit() {
             num_buf.push(ch);
         } else {
-            let n: i64 = num_buf.parse().map_err(|_| {
-                AppError::InvalidInput(format!("Invalid duration: '{s}'"))
-            })?;
+            let n: i64 = num_buf
+                .parse()
+                .map_err(|_| AppError::InvalidInput(format!("Invalid duration: '{s}'")))?;
             num_buf.clear();
-            let overflow_err =
-                || AppError::InvalidInput(format!("Duration overflow: '{s}'"));
+            let overflow_err = || AppError::InvalidInput(format!("Duration overflow: '{s}'"));
             match ch {
                 'h' | 'H' => {
                     total = total
@@ -63,7 +62,7 @@ fn parse_duration_str(s: &str) -> Result<i64> {
                 _ => {
                     return Err(AppError::InvalidInput(format!(
                         "Invalid duration unit '{ch}' in '{s}' (expected h, m, or s)"
-                    )))
+                    )));
                 }
             }
         }
@@ -74,7 +73,9 @@ fn parse_duration_str(s: &str) -> Result<i64> {
         )));
     }
     if total == 0 {
-        return Err(AppError::InvalidInput(format!("Duration must be positive: '{s}'")));
+        return Err(AppError::InvalidInput(format!(
+            "Duration must be positive: '{s}'"
+        )));
     }
     Ok(total)
 }
@@ -114,7 +115,15 @@ pub async fn run(
         } => {
             let wid = ctx.resolve_workspace_id().await?;
             create(
-                wid, description, project, task, tags, billable, start, stop, duration,
+                wid,
+                description,
+                project,
+                task,
+                tags,
+                billable,
+                start,
+                stop,
+                duration,
                 ctx,
             )
             .await
@@ -131,8 +140,16 @@ pub async fn run(
         } => {
             let wid = resolve_entry_workspace(ctx.client, ctx.workspace, TimeEntryId(id)).await?;
             edit(
-                wid, TimeEntryId(id), description, project, tags, billable, start, stop,
-                duration, ctx,
+                wid,
+                TimeEntryId(id),
+                description,
+                project,
+                tags,
+                billable,
+                start,
+                stop,
+                duration,
+                ctx,
             )
             .await
         }
@@ -140,9 +157,7 @@ pub async fn run(
             let wid = resolve_entry_workspace(ctx.client, ctx.workspace, TimeEntryId(id)).await?;
             delete(wid, TimeEntryId(id), ctx).await
         }
-        EntriesAction::Continue { id } => {
-            continue_entry(TimeEntryId(id), ctx).await
-        }
+        EntriesAction::Continue { id } => continue_entry(TimeEntryId(id), ctx).await,
     }
 }
 
@@ -160,10 +175,7 @@ async fn list(
     output::print_list(&mut std::io::stdout(), &entries, ctx.json, ctx.hits())
 }
 
-async fn get(
-    id: TimeEntryId,
-    ctx: &CommandContext<'_, impl ApiClient>,
-) -> Result<()> {
+async fn get(id: TimeEntryId, ctx: &CommandContext<'_, impl ApiClient>) -> Result<()> {
     let entry = ctx.client.get_time_entry(id).await?;
     output::print_result(&mut std::io::stdout(), &entry, ctx.json, ctx.hits())
 }
@@ -201,12 +213,12 @@ async fn create(
         (None, None) => {
             return Err(AppError::InvalidInput(
                 "--stop or --duration is required for entries create".to_string(),
-            ))
+            ));
         }
         (Some(_), Some(_)) => {
             return Err(AppError::InvalidInput(
                 "specify --stop or --duration, not both".to_string(),
-            ))
+            ));
         }
     };
     let params = CreateTimeEntryParams {
@@ -220,7 +232,13 @@ async fn create(
         duration,
     };
     let entry = ctx.client.create_time_entry(workspace_id, &params).await?;
-    output::print_success(&mut std::io::stdout(), &entry, ctx.json, "Entry created", ctx.hits())
+    output::print_success(
+        &mut std::io::stdout(),
+        &entry,
+        ctx.json,
+        "Entry created",
+        ctx.hits(),
+    )
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -257,7 +275,13 @@ async fn edit(
         .client
         .update_time_entry(workspace_id, entry_id, &params)
         .await?;
-    output::print_success(&mut std::io::stdout(), &entry, ctx.json, "Entry updated", ctx.hits())
+    output::print_success(
+        &mut std::io::stdout(),
+        &entry,
+        ctx.json,
+        "Entry updated",
+        ctx.hits(),
+    )
 }
 
 async fn delete(

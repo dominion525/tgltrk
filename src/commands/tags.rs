@@ -5,10 +5,7 @@ use crate::error::Result;
 use crate::models::{TagId, WorkspaceId};
 use crate::output;
 
-pub async fn run(
-    action: TagsAction,
-    ctx: &mut CommandContext<'_, impl ApiClient>,
-) -> Result<()> {
+pub async fn run(action: TagsAction, ctx: &mut CommandContext<'_, impl ApiClient>) -> Result<()> {
     let wid = ctx.resolve_workspace_id().await?;
     match action {
         TagsAction::List => list(wid, ctx).await,
@@ -18,10 +15,7 @@ pub async fn run(
     }
 }
 
-async fn list(
-    wid: WorkspaceId,
-    ctx: &mut CommandContext<'_, impl ApiClient>,
-) -> Result<()> {
+async fn list(wid: WorkspaceId, ctx: &mut CommandContext<'_, impl ApiClient>) -> Result<()> {
     let key = format!("tags_{wid}");
     let fut = ctx.client.list_tags(wid);
     let tags = ctx.cached_fetch(&key, fut).await?;
@@ -35,7 +29,13 @@ async fn create(
 ) -> Result<()> {
     let tag = ctx.client.create_tag(wid, name).await?;
     ctx.invalidate_cache(&format!("tags_{wid}"));
-    output::print_success(&mut std::io::stdout(), &tag, ctx.json, "Tag created", ctx.hits())
+    output::print_success(
+        &mut std::io::stdout(),
+        &tag,
+        ctx.json,
+        "Tag created",
+        ctx.hits(),
+    )
 }
 
 async fn update(
@@ -46,7 +46,13 @@ async fn update(
 ) -> Result<()> {
     let tag = ctx.client.update_tag(wid, id, name).await?;
     ctx.invalidate_cache(&format!("tags_{wid}"));
-    output::print_success(&mut std::io::stdout(), &tag, ctx.json, "Tag updated", ctx.hits())
+    output::print_success(
+        &mut std::io::stdout(),
+        &tag,
+        ctx.json,
+        "Tag updated",
+        ctx.hits(),
+    )
 }
 
 async fn delete(

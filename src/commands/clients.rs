@@ -14,17 +14,12 @@ pub async fn run(
         ClientsAction::List => list(wid, ctx).await,
         ClientsAction::Get { id } => get(wid, ClientId(id), ctx).await,
         ClientsAction::Create { name } => create(wid, &name, ctx).await,
-        ClientsAction::Update { id, name } => {
-            update(wid, ClientId(id), &name, ctx).await
-        }
+        ClientsAction::Update { id, name } => update(wid, ClientId(id), &name, ctx).await,
         ClientsAction::Delete { id } => delete(wid, ClientId(id), ctx).await,
     }
 }
 
-async fn list(
-    wid: WorkspaceId,
-    ctx: &mut CommandContext<'_, impl ApiClient>,
-) -> Result<()> {
+async fn list(wid: WorkspaceId, ctx: &mut CommandContext<'_, impl ApiClient>) -> Result<()> {
     let key = format!("clients_{wid}");
     let fut = ctx.client.list_clients(wid);
     let clients = ctx.cached_fetch(&key, fut).await?;
@@ -47,7 +42,13 @@ async fn create(
 ) -> Result<()> {
     let c = ctx.client.create_client(wid, name).await?;
     ctx.invalidate_cache(&format!("clients_{wid}"));
-    output::print_success(&mut std::io::stdout(), &c, ctx.json, "Client created", ctx.hits())
+    output::print_success(
+        &mut std::io::stdout(),
+        &c,
+        ctx.json,
+        "Client created",
+        ctx.hits(),
+    )
 }
 
 async fn update(
@@ -58,7 +59,13 @@ async fn update(
 ) -> Result<()> {
     let c = ctx.client.update_client(wid, id, name).await?;
     ctx.invalidate_cache(&format!("clients_{wid}"));
-    output::print_success(&mut std::io::stdout(), &c, ctx.json, "Client updated", ctx.hits())
+    output::print_success(
+        &mut std::io::stdout(),
+        &c,
+        ctx.json,
+        "Client updated",
+        ctx.hits(),
+    )
 }
 
 async fn delete(

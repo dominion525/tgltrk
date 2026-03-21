@@ -1,6 +1,6 @@
 use crate::api::client::{ApiClient, TogglClient};
-use crate::cli::AuthAction;
 use crate::cache::CacheHits;
+use crate::cli::AuthAction;
 use crate::constants::ENV_API_TOKEN;
 use crate::credentials::{self, CredentialStore, KeyringStore};
 use crate::error::{AppError, Result};
@@ -11,7 +11,9 @@ pub async fn execute(action: AuthAction, json: bool) -> Result<()> {
         AuthAction::Login { token } => {
             let token = match token {
                 Some(t) => {
-                    eprintln!("Warning: passing tokens as arguments is visible in process listings and shell history. Consider using interactive input instead.");
+                    eprintln!(
+                        "Warning: passing tokens as arguments is visible in process listings and shell history. Consider using interactive input instead."
+                    );
                     t
                 }
                 None => {
@@ -66,11 +68,7 @@ fn warn_if_env_override() {
     }
 }
 
-pub async fn login_with_base_url(
-    token: &str,
-    json: bool,
-    base_url: Option<&str>,
-) -> Result<()> {
+pub async fn login_with_base_url(token: &str, json: bool, base_url: Option<&str>) -> Result<()> {
     let store = KeyringStore::new()?;
     let client = match base_url {
         Some(url) => TogglClient::new_with_base_url(token, url)?,

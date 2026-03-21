@@ -153,10 +153,8 @@ impl FileCache {
         #[cfg(unix)]
         if !dir_existed {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(
-                &self.cache_dir,
-                std::fs::Permissions::from_mode(0o700),
-            );
+            let _ =
+                std::fs::set_permissions(&self.cache_dir, std::fs::Permissions::from_mode(0o700));
         }
 
         let entry = CacheEntry {

@@ -1,7 +1,7 @@
 use serde::Serialize;
 
-use crate::cache::FileCache;
 use crate::cache::CacheHits;
+use crate::cache::FileCache;
 use crate::error::{AppError, Result};
 use crate::output;
 
