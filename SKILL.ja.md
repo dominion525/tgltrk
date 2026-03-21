@@ -1,5 +1,6 @@
 ---
 name: tgltrk
+version: "{{VERSION}}"
 description: >
   Toggl Track のタイムトラッキングを CLI から操作する。タイマーの開始・停止、
   タイムエントリの一覧・編集・削除・再開、プロジェクトとタグの管理が可能。
@@ -136,6 +137,10 @@ tgltrk entries edit ENTRY_ID [-d "説明"] [-p PROJECT_ID] [-t tag1,tag2] [-b tr
 ## エラー動作
 
 エラーは stderr に `Error: ...` で出力、終了コード 1。認証未設定、API エラー、不正な日付形式などで発生。
+
+## 注意
+
+`tgltrk --version` の出力がこのファイルのフロントマターの `version` と異なる場合は、`tgltrk --help-skill` で再出力してください。
 
 ## 制約
 

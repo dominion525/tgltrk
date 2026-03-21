@@ -1,5 +1,6 @@
 ---
 name: tgltrk
+version: "{{VERSION}}"
 description: >
   Operate Toggl Track time tracking from the CLI. Start/stop timers,
   list/edit/delete/continue time entries, manage projects and tags.
@@ -136,6 +137,10 @@ Full options for each command are available via `tgltrk <command> --help`.
 ## Error Behavior
 
 Errors are printed to stderr as `Error: ...` with exit code 1. Triggered by missing auth, API errors, invalid date format, etc.
+
+## Note
+
+If `tgltrk --version` does not match the `version` field in this file's frontmatter, re-export with `tgltrk --help-skill`.
 
 ## Limitations
 

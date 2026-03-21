@@ -14,7 +14,8 @@ use colored::Colorize;
 
 pub async fn run_cli(cli: Cli) -> error::Result<()> {
     if cli.help_skill {
-        print!("{}", include_str!("../SKILL.md"));
+        let skill = include_str!("../SKILL.md").replace("{{VERSION}}", env!("CARGO_PKG_VERSION"));
+        print!("{skill}");
         return Ok(());
     }
 

@@ -71,9 +71,9 @@ $ tgltrk timer stop
 ```bash
 # List recent entries
 $ tgltrk entries list -n 3
-#12345677 Weekly meeting 01:00:00
-#12345676 Bug fix 00:30:15
-#12345675 Design review 02:15:00 [design]
+#12345677 Weekly meeting 2024-01-15 10:00-11:00 01:00:00 (Internal)
+#12345676 Bug fix 2024-01-15 09:00-09:30 00:30:15 (Project A [Acme])
+#12345675 Design review 2024-01-14 14:00-16:15 02:15:00 (Project A [Acme]) [design]
 
 # Filter by date range
 $ tgltrk entries list --since 2024-01-01 --until 2024-01-31
