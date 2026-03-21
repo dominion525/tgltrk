@@ -21,6 +21,10 @@ Thumbs.db
 *.swo
 *~
 
+# Release artifacts
+*.tar.gz
+*.zip
+
 # Local work
 .claude/
 tasks/
