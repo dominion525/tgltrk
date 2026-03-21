@@ -8,6 +8,9 @@ pub mod tags;
 pub mod timer;
 pub mod workspaces;
 
+use std::hash::{DefaultHasher, Hash, Hasher};
+use std::sync::OnceLock;
+
 use chrono::TimeDelta;
 
 use crate::api::client::{ApiClient, TogglClient};
@@ -15,6 +18,21 @@ use crate::cache::FileCache;
 use crate::constants::CACHE_TTL_HOURS;
 use crate::error::Result;
 use crate::models::WorkspaceId;
+
+static TOKEN_FINGERPRINT: OnceLock<String> = OnceLock::new();
+
+fn compute_fingerprint(token: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    token.hash(&mut hasher);
+    format!("{:016x}", hasher.finish())
+}
+
+fn cache_key(key: &str) -> String {
+    match TOKEN_FINGERPRINT.get() {
+        Some(fp) => format!("{fp}_{key}"),
+        None => key.to_string(),
+    }
+}
 
 /// キャッシュヒットしたエンティティ名を収集する
 #[derive(Default, Debug)]
@@ -53,6 +71,7 @@ pub async fn resolve_workspace_id(
 pub fn build_client(base_url: Option<&str>) -> Result<TogglClient> {
     let store = crate::credentials::get_store()?;
     let cred = store.read()?;
+    TOKEN_FINGERPRINT.get_or_init(|| compute_fingerprint(&cred.api_token));
     match base_url {
         Some(url) => TogglClient::new_with_base_url(&cred.api_token, url),
         None => TogglClient::new(&cred.api_token),
@@ -61,7 +80,8 @@ pub fn build_client(base_url: Option<&str>) -> Result<TogglClient> {
 
 pub fn invalidate_cache(key: &str) {
     if let Some(cache) = get_cache() {
-        if let Err(e) = cache.invalidate(key) {
+        let full_key = cache_key(key);
+        if let Err(e) = cache.invalidate(&full_key) {
             eprintln!("Warning: failed to invalidate cache key '{key}': {e}");
         }
     }
@@ -80,14 +100,15 @@ where
     T: serde::Serialize + serde::de::DeserializeOwned,
     Fut: std::future::Future<Output = Result<T>>,
 {
+    let full_key = cache_key(key);
     let cache = get_cache();
-    if let Some(cached) = cache.as_ref().and_then(|c| c.get::<T>(key)) {
+    if let Some(cached) = cache.as_ref().and_then(|c| c.get::<T>(&full_key)) {
         hits.record(key);
         return Ok(cached);
     }
     let value = fetch.await?;
     if let Some(c) = &cache {
-        if let Err(e) = c.set(key, &value) {
+        if let Err(e) = c.set(&full_key, &value) {
             eprintln!("Warning: failed to write cache key '{key}': {e}");
         }
     }
