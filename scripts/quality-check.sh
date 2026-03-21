@@ -59,17 +59,18 @@ printf " $(pass) (%s passed)\n" "${test_passed:-?}"
 
 # --- 2. Fmt ---
 header "Fmt"
-fmt_output=$(cargo fmt --check 2>&1) && {
-    printf " $(pass)\n"
-} || {
+fmt_output=$(cargo fmt --check 2>&1) || {
     printf " $(fail)\n"
     echo "$fmt_output" | tail -20
-    ERRORS=$((ERRORS + 1))
+    echo ""
+    echo "Fmt failed. Aborting."
+    exit 1
 }
+printf " $(pass)\n"
 
 # --- 3. Clippy ---
 header "Clippy"
-clippy_output=$(cargo clippy --all-targets -- -D warnings 2>&1) || {
+clippy_output=$(cargo clippy --all-targets -- -D warnings -W clippy::too_many_lines -W clippy::excessive_nesting 2>&1) || {
     printf " $(fail)\n"
     echo "$clippy_output" | tail -20
     echo ""
@@ -80,13 +81,14 @@ printf " $(pass)\n"
 
 # --- 4. Audit ---
 header "Audit"
-audit_output=$(cargo audit 2>&1) && {
-    printf " $(pass)\n"
-} || {
+audit_output=$(cargo audit 2>&1) || {
     printf " $(fail)\n"
     echo "$audit_output" | tail -20
-    ERRORS=$((ERRORS + 1))
+    echo ""
+    echo "Audit failed. Aborting."
+    exit 1
 }
+printf " $(pass)\n"
 
 # --- 5. Doc ---
 header "Doc"
