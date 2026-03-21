@@ -9,7 +9,10 @@ pub async fn execute(action: AuthAction) -> Result<()> {
     match action {
         AuthAction::Login { token } => {
             let token = match token {
-                Some(t) => t,
+                Some(t) => {
+                    eprintln!("Warning: passing tokens as arguments is visible in process listings and shell history. Consider using interactive input instead.");
+                    t
+                }
                 None => {
                     eprint!("API token: ");
                     rpassword::read_password()

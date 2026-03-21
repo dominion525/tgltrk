@@ -59,7 +59,13 @@ async fn list(
         return output::print_list(&mut std::io::stdout(), &projects, json, hits);
     }
     let client_key = format!("clients_{wid}");
-    let clients = cached_fetch(&client_key, hits, client.list_clients(wid)).await?;
+    let clients = match cached_fetch(&client_key, hits, client.list_clients(wid)).await {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Warning: failed to fetch clients: {e}");
+            vec![]
+        }
+    };
     let client_map: HashMap<ClientId, String> =
         clients.iter().map(|c| (c.id, c.name.clone())).collect();
     let w = &mut std::io::stdout();
