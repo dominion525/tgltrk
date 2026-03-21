@@ -211,6 +211,13 @@ async fn list(
     for e in &entries {
         let desc = e.description.as_deref().unwrap_or("(no description)");
         let status = if e.is_running() { " [running]" } else { "" };
+        let local_start = e.start.with_timezone(&Local);
+        let date = local_start.format("%Y-%m-%d");
+        let start_time = local_start.format("%H:%M");
+        let stop_time = e
+            .stop
+            .map(|s| s.with_timezone(&Local).format("%H:%M").to_string())
+            .unwrap_or_default();
         let project_info = e
             .project_id
             .and_then(|pid| project_map.get(&pid))
@@ -229,9 +236,10 @@ async fn list(
         };
         writeln!(
             w,
-            "#{} {} {}{}{}{tags}",
+            "#{} {} {} {start_time}-{stop_time} {}{}{}{tags}",
             e.id,
             desc,
+            date,
             e.display_duration(),
             status,
             project_info,
