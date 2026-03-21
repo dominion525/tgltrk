@@ -128,8 +128,8 @@ Full options for each command are available via `tgltrk <command> --help`.
 
 ## Cache Behavior
 
-- User info, projects, and tags are cached for 72 hours (to reduce API calls and stay within rate limits)
-- Automatically invalidated on project/tag create, update, or delete
+- User info, projects, clients, and tags are cached for 72 hours (to reduce API calls and stay within rate limits)
+- Automatically invalidated on project/client/tag create, update, or delete
 - Cleared entirely on account switch via `auth login`
 - Manual clear: `tgltrk cache clear`
 
