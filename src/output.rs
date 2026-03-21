@@ -1,6 +1,6 @@
 use colored::Colorize;
 
-use crate::commands::CacheHits;
+use crate::cache::CacheHits;
 use crate::error::Result;
 use serde::Serialize;
 use std::fmt;

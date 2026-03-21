@@ -27,17 +27,26 @@ pub async fn run_cli(cli: Cli) -> error::Result<()> {
 
     match command {
         Command::Auth { action } => commands::auth::execute(action, json).await,
-        Command::Me => commands::me::execute(json, workspace).await,
-        Command::Timer { action } => commands::timer::execute(action, json, workspace).await,
-        Command::Entries { action } => commands::entries::execute(action, json, workspace).await,
-        Command::Projects { action } => commands::projects::execute(action, json, workspace).await,
-        Command::Tags { action } => commands::tags::execute(action, json, workspace).await,
-        Command::Clients { action } => commands::clients::execute(action, json, workspace).await,
-        Command::Workspaces { action } => commands::workspaces::execute(action, json).await,
         Command::Cache { action } => match action {
             CacheAction::Clear => commands::cache_cmd::clear(json).await,
             CacheAction::Status => commands::cache_cmd::status(json).await,
         },
+        cmd => {
+            let client = commands::build_client(None)?;
+            let mut ctx = commands::CommandContext::new(&client, json, workspace);
+            match cmd {
+                Command::Me => commands::me::run(&mut ctx).await,
+                Command::Timer { action } => commands::timer::run(action, &mut ctx).await,
+                Command::Entries { action } => commands::entries::run(action, &mut ctx).await,
+                Command::Projects { action } => commands::projects::run(action, &mut ctx).await,
+                Command::Tags { action } => commands::tags::run(action, &mut ctx).await,
+                Command::Clients { action } => commands::clients::run(action, &mut ctx).await,
+                Command::Workspaces { action } => {
+                    commands::workspaces::run(action, &mut ctx).await
+                }
+                Command::Auth { .. } | Command::Cache { .. } => unreachable!(),
+            }
+        }
     }
 }
 

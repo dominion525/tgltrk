@@ -1,58 +1,39 @@
 use crate::api::client::ApiClient;
 use crate::cli::WorkspacesAction;
-use crate::commands::{CacheHits, build_client, cached_fetch};
+use crate::commands::CommandContext;
 use crate::error::Result;
 use crate::models::WorkspaceId;
 use crate::output;
 
-pub async fn execute(action: WorkspacesAction, json: bool) -> Result<()> {
-    execute_with_base_url(action, json, None).await
-}
-
-pub async fn execute_with_base_url(
+pub async fn run(
     action: WorkspacesAction,
-    json: bool,
-    base_url: Option<&str>,
+    ctx: &mut CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let client = build_client(base_url)?;
-    run(action, json, &client).await
-}
-
-async fn run(
-    action: WorkspacesAction,
-    json: bool,
-    client: &(impl ApiClient + ?Sized),
-) -> Result<()> {
-    let mut hits = CacheHits::new();
     match action {
-        WorkspacesAction::List => list(json, client, &mut hits).await,
-        WorkspacesAction::Get { id } => get(json, WorkspaceId(id), client, &hits).await,
+        WorkspacesAction::List => list(ctx).await,
+        WorkspacesAction::Get { id } => get(WorkspaceId(id), ctx).await,
     }
 }
 
-async fn get(
-    json: bool,
-    id: WorkspaceId,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
-) -> Result<()> {
-    let ws = client.get_workspace(id).await?;
-    output::print_result(&mut std::io::stdout(), &ws, json, hits)
+async fn list(ctx: &mut CommandContext<'_, impl ApiClient>) -> Result<()> {
+    let fut = ctx.client.list_workspaces();
+    let workspaces = ctx.cached_fetch("workspaces", fut).await?;
+    output::print_list(&mut std::io::stdout(), &workspaces, ctx.json, ctx.hits())
 }
 
-async fn list(
-    json: bool,
-    client: &(impl ApiClient + ?Sized),
-    hits: &mut CacheHits,
+async fn get(
+    id: WorkspaceId,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let workspaces = cached_fetch("workspaces", hits, client.list_workspaces()).await?;
-    output::print_list(&mut std::io::stdout(), &workspaces, json, hits)
+    let ws = ctx.client.get_workspace(id).await?;
+    output::print_result(&mut std::io::stdout(), &ws, ctx.json, ctx.hits())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
+    use crate::commands::build_client;
     use crate::models::{Workspace, WorkspaceId};
 
     fn make_workspace(id: i64, name: &str) -> Workspace {
@@ -67,7 +48,8 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_list_workspaces()
             .returning(|| Ok(vec![make_workspace(1, "Personal"), make_workspace(2, "Team")]));
-        let result = run(WorkspacesAction::List, false, &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, None);
+        let result = run(WorkspacesAction::List, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -76,7 +58,8 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_list_workspaces()
             .returning(|| Ok(vec![make_workspace(1, "Personal")]));
-        let result = run(WorkspacesAction::List, true, &mock).await;
+        let mut ctx = CommandContext::new(&mock, true, None);
+        let result = run(WorkspacesAction::List, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -100,8 +83,9 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result =
-            execute_with_base_url(WorkspacesAction::List, false, Some(&server.uri())).await;
+        let client = build_client(Some(&server.uri())).unwrap();
+        let mut ctx = CommandContext::new(&client, false, None);
+        let result = run(WorkspacesAction::List, &mut ctx).await;
         // SAFETY: test is single-threaded for env var access
         unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
         assert!(result.is_ok());

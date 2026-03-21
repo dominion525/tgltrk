@@ -1,31 +1,19 @@
 use crate::api::client::ApiClient;
-use crate::commands::{CacheHits, build_client, cached_fetch};
+use crate::commands::CommandContext;
 use crate::error::Result;
 use crate::output;
 
-pub async fn execute(json: bool, workspace: Option<i64>) -> Result<()> {
-    execute_with_base_url(json, workspace, None).await
-}
-
-pub async fn execute_with_base_url(
-    json: bool,
-    _workspace: Option<i64>,
-    base_url: Option<&str>,
-) -> Result<()> {
-    let client = build_client(base_url)?;
-    run(json, &client).await
-}
-
-async fn run(json: bool, client: &(impl ApiClient + ?Sized)) -> Result<()> {
-    let mut hits = CacheHits::new();
-    let user = cached_fetch("user", &mut hits, client.get_me()).await?;
-    output::print_result(&mut std::io::stdout(), &user, json, &hits)
+pub async fn run(ctx: &mut CommandContext<'_, impl ApiClient>) -> Result<()> {
+    let fut = ctx.client.get_me();
+    let user = ctx.cached_fetch("user", fut).await?;
+    output::print_result(&mut std::io::stdout(), &user, ctx.json, ctx.hits())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
+    use crate::commands::build_client;
     use crate::models::{User, WorkspaceId};
 
     #[tokio::test]
@@ -39,7 +27,8 @@ mod tests {
                 timezone: "Asia/Tokyo".to_string(),
             })
         });
-        let result = run(false, &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, None);
+        let result = run(&mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -62,7 +51,9 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = execute_with_base_url(false, None, Some(&server.uri())).await;
+        let client = build_client(Some(&server.uri())).unwrap();
+        let mut ctx = CommandContext::new(&client, false, None);
+        let result = run(&mut ctx).await;
         // SAFETY: test is single-threaded for env var access
         unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
         assert!(result.is_ok());

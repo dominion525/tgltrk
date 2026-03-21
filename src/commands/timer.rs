@@ -2,34 +2,17 @@ use colored::Colorize;
 
 use crate::api::client::{ApiClient, CreateTimeEntryParams};
 use crate::cli::TimerAction;
-use crate::commands::{CacheHits, build_client, resolve_workspace_id};
+use crate::commands::CommandContext;
 use crate::error::{AppError, Result};
 use crate::models::{ProjectId, TaskId, WorkspaceId};
 use crate::output;
 
-pub async fn execute(action: TimerAction, json: bool, workspace: Option<i64>) -> Result<()> {
-    execute_with_base_url(action, json, workspace, None).await
-}
-
-pub async fn execute_with_base_url(
+pub async fn run(
     action: TimerAction,
-    json: bool,
-    workspace: Option<i64>,
-    base_url: Option<&str>,
+    ctx: &mut CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let client = build_client(base_url)?;
-    run(action, json, workspace, &client).await
-}
-
-async fn run(
-    action: TimerAction,
-    json: bool,
-    workspace: Option<i64>,
-    client: &(impl ApiClient + ?Sized),
-) -> Result<()> {
-    let mut hits = CacheHits::new();
     match action {
-        TimerAction::Current => current(json, client, &hits).await,
+        TimerAction::Current => current(ctx).await,
         TimerAction::Start {
             description,
             project,
@@ -37,30 +20,28 @@ async fn run(
             tags,
             billable,
         } => {
-            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+            let wid = ctx.resolve_workspace_id().await?;
             start(
-                json,
                 wid,
                 description,
                 project,
                 task.map(TaskId),
                 tags,
                 billable,
-                client,
-                &hits,
+                ctx,
             )
             .await
         }
-        TimerAction::Stop => stop(json, workspace, client, &hits).await,
+        TimerAction::Stop => stop(ctx).await,
     }
 }
 
-async fn current(json: bool, client: &(impl ApiClient + ?Sized), hits: &CacheHits) -> Result<()> {
-    match client.get_current_timer().await? {
-        Some(entry) => output::print_result(&mut std::io::stdout(), &entry, json, hits),
+async fn current(ctx: &CommandContext<'_, impl ApiClient>) -> Result<()> {
+    match ctx.client.get_current_timer().await? {
+        Some(entry) => output::print_result(&mut std::io::stdout(), &entry, ctx.json, ctx.hits()),
         None => {
-            if json {
-                output::print_null(&mut std::io::stdout(), json, hits)
+            if ctx.json {
+                output::print_null(&mut std::io::stdout(), ctx.json, ctx.hits())
             } else {
                 println!("{}", "No running timer".yellow());
                 Ok(())
@@ -71,15 +52,13 @@ async fn current(json: bool, client: &(impl ApiClient + ?Sized), hits: &CacheHit
 
 #[allow(clippy::too_many_arguments)]
 async fn start(
-    json: bool,
     workspace_id: WorkspaceId,
     description: Option<String>,
     project: Option<i64>,
     task: Option<TaskId>,
     tags: Option<Vec<String>>,
     billable: bool,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
     let params = CreateTimeEntryParams {
         description,
@@ -91,30 +70,27 @@ async fn start(
         stop: None,
         duration: None,
     };
-    let entry = client.create_time_entry(workspace_id, &params).await?;
-    output::print_success(&mut std::io::stdout(), &entry, json, "Timer started", hits)
+    let entry = ctx.client.create_time_entry(workspace_id, &params).await?;
+    output::print_success(&mut std::io::stdout(), &entry, ctx.json, "Timer started", ctx.hits())
 }
 
-async fn stop(
-    json: bool,
-    workspace: Option<i64>,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
-) -> Result<()> {
-    let current = client
+async fn stop(ctx: &CommandContext<'_, impl ApiClient>) -> Result<()> {
+    let current = ctx
+        .client
         .get_current_timer()
         .await?
         .ok_or_else(|| AppError::NotFound("No running timer".to_string()))?;
 
-    let wid = workspace.map(WorkspaceId).unwrap_or(current.workspace_id);
-    let entry = client.stop_time_entry(wid, current.id).await?;
-    output::print_success(&mut std::io::stdout(), &entry, json, "Timer stopped", hits)
+    let wid = ctx.workspace.map(WorkspaceId).unwrap_or(current.workspace_id);
+    let entry = ctx.client.stop_time_entry(wid, current.id).await?;
+    output::print_success(&mut std::io::stdout(), &entry, ctx.json, "Timer stopped", ctx.hits())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
+    use crate::commands::build_client;
     use crate::models::{TimeEntry, TimeEntryId};
     use chrono::Utc;
 
@@ -138,7 +114,8 @@ mod tests {
     async fn stop_with_no_running_timer_returns_error() {
         let mut mock = MockApiClient::new();
         mock.expect_get_current_timer().returning(|| Ok(None));
-        let result = run(TimerAction::Stop, false, Some(1), &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
+        let result = run(TimerAction::Stop, &mut ctx).await;
         assert!(result.is_err());
     }
 
@@ -146,7 +123,8 @@ mod tests {
     async fn current_with_no_timer_succeeds() {
         let mut mock = MockApiClient::new();
         mock.expect_get_current_timer().returning(|| Ok(None));
-        let result = run(TimerAction::Current, false, None, &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, None);
+        let result = run(TimerAction::Current, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -159,7 +137,8 @@ mod tests {
             .withf(|wid, eid| *wid == WorkspaceId(1) && *eid == TimeEntryId(10))
             .returning(|_, _| Ok(make_entry(10, false)));
 
-        let result = run(TimerAction::Stop, false, None, &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, None);
+        let result = run(TimerAction::Stop, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -168,6 +147,7 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_entry(100, true)));
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             TimerAction::Start {
                 description: Some("Work".to_string()),
@@ -176,9 +156,7 @@ mod tests {
                 tags: Some(vec!["dev".to_string()]),
                 billable: true,
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -189,6 +167,7 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_entry(101, true)));
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             TimerAction::Start {
                 description: None,
@@ -197,9 +176,7 @@ mod tests {
                 tags: None,
                 billable: false,
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -210,6 +187,7 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_entry(102, true)));
+        let mut ctx = CommandContext::new(&mock, true, Some(1));
         let result = run(
             TimerAction::Start {
                 description: Some("json test".to_string()),
@@ -218,9 +196,7 @@ mod tests {
                 tags: None,
                 billable: false,
             },
-            true,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -231,7 +207,8 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_get_current_timer()
             .returning(|| Ok(Some(make_entry(50, true))));
-        let result = run(TimerAction::Current, false, None, &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, None);
+        let result = run(TimerAction::Current, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -242,7 +219,8 @@ mod tests {
             .returning(|| Ok(Some(make_entry(10, true))));
         mock.expect_stop_time_entry()
             .returning(|_, _| Ok(make_entry(10, false)));
-        let result = run(TimerAction::Stop, true, None, &mock).await;
+        let mut ctx = CommandContext::new(&mock, true, None);
+        let result = run(TimerAction::Stop, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -268,7 +246,9 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = execute_with_base_url(
+        let client = build_client(Some(&server.uri())).unwrap();
+        let mut ctx = CommandContext::new(&client, false, Some(1));
+        let result = run(
             TimerAction::Start {
                 description: Some("Test".to_string()),
                 project: None,
@@ -276,9 +256,7 @@ mod tests {
                 tags: None,
                 billable: false,
             },
-            false,
-            Some(1),
-            Some(&server.uri()),
+            &mut ctx,
         )
         .await;
         // SAFETY: test is single-threaded for env var access

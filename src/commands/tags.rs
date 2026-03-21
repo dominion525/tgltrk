@@ -1,92 +1,66 @@
 use crate::api::client::ApiClient;
 use crate::cli::TagsAction;
-use crate::commands::{
-    CacheHits, build_client, cached_fetch, invalidate_cache, resolve_workspace_id,
-};
+use crate::commands::CommandContext;
 use crate::error::Result;
 use crate::models::{TagId, WorkspaceId};
 use crate::output;
 
-pub async fn execute(action: TagsAction, json: bool, workspace: Option<i64>) -> Result<()> {
-    execute_with_base_url(action, json, workspace, None).await
-}
-
-pub async fn execute_with_base_url(
+pub async fn run(
     action: TagsAction,
-    json: bool,
-    workspace: Option<i64>,
-    base_url: Option<&str>,
+    ctx: &mut CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let client = build_client(base_url)?;
-    run(action, json, workspace, &client).await
-}
-
-async fn run(
-    action: TagsAction,
-    json: bool,
-    workspace: Option<i64>,
-    client: &(impl ApiClient + ?Sized),
-) -> Result<()> {
-    let mut hits = CacheHits::new();
-    let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+    let wid = ctx.resolve_workspace_id().await?;
     match action {
-        TagsAction::List => list(json, wid, client, &mut hits).await,
-        TagsAction::Create { name } => create(json, wid, &name, client, &hits).await,
-        TagsAction::Update { id, name } => update(json, wid, TagId(id), &name, client, &hits).await,
-        TagsAction::Delete { id } => delete(json, wid, TagId(id), client, &hits).await,
+        TagsAction::List => list(wid, ctx).await,
+        TagsAction::Create { name } => create(wid, &name, ctx).await,
+        TagsAction::Update { id, name } => update(wid, TagId(id), &name, ctx).await,
+        TagsAction::Delete { id } => delete(wid, TagId(id), ctx).await,
     }
 }
 
 async fn list(
-    json: bool,
     wid: WorkspaceId,
-    client: &(impl ApiClient + ?Sized),
-    hits: &mut CacheHits,
+    ctx: &mut CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
     let key = format!("tags_{wid}");
-    let tags = cached_fetch(&key, hits, client.list_tags(wid)).await?;
-    output::print_list(&mut std::io::stdout(), &tags, json, hits)
+    let fut = ctx.client.list_tags(wid);
+    let tags = ctx.cached_fetch(&key, fut).await?;
+    output::print_list(&mut std::io::stdout(), &tags, ctx.json, ctx.hits())
 }
 
 async fn create(
-    json: bool,
     wid: WorkspaceId,
     name: &str,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let tag = client.create_tag(wid, name).await?;
-    invalidate_cache(&format!("tags_{wid}"));
-    output::print_success(&mut std::io::stdout(), &tag, json, "Tag created", hits)
+    let tag = ctx.client.create_tag(wid, name).await?;
+    ctx.invalidate_cache(&format!("tags_{wid}"));
+    output::print_success(&mut std::io::stdout(), &tag, ctx.json, "Tag created", ctx.hits())
 }
 
 async fn update(
-    json: bool,
     wid: WorkspaceId,
     id: TagId,
     name: &str,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let tag = client.update_tag(wid, id, name).await?;
-    invalidate_cache(&format!("tags_{wid}"));
-    output::print_success(&mut std::io::stdout(), &tag, json, "Tag updated", hits)
+    let tag = ctx.client.update_tag(wid, id, name).await?;
+    ctx.invalidate_cache(&format!("tags_{wid}"));
+    output::print_success(&mut std::io::stdout(), &tag, ctx.json, "Tag updated", ctx.hits())
 }
 
 async fn delete(
-    json: bool,
     wid: WorkspaceId,
     id: TagId,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    client.delete_tag(wid, id).await?;
-    invalidate_cache(&format!("tags_{wid}"));
+    ctx.client.delete_tag(wid, id).await?;
+    ctx.invalidate_cache(&format!("tags_{wid}"));
     output::print_deleted(
         &mut std::io::stdout(),
-        json,
+        ctx.json,
         &format!("Tag #{id} deleted"),
-        hits,
+        ctx.hits(),
     )
 }
 
@@ -94,6 +68,7 @@ async fn delete(
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
+    use crate::commands::build_client;
     use crate::models::Tag;
 
     fn make_tag(id: i64, name: &str) -> Tag {
@@ -109,7 +84,8 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_list_tags()
             .returning(|_| Ok(vec![make_tag(1, "urgent"), make_tag(2, "billing")]));
-        let result = run(TagsAction::List, false, Some(1), &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
+        let result = run(TagsAction::List, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -119,7 +95,8 @@ mod tests {
         mock.expect_delete_tag()
             .withf(|wid, tid| *wid == WorkspaceId(1) && *tid == TagId(3))
             .returning(|_, _| Ok(()));
-        let result = run(TagsAction::Delete { id: 3 }, false, Some(1), &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
+        let result = run(TagsAction::Delete { id: 3 }, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -128,13 +105,12 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_create_tag()
             .returning(|_, _| Ok(make_tag(10, "urgent")));
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             TagsAction::Create {
                 name: "urgent".to_string(),
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -145,13 +121,12 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_create_tag()
             .returning(|_, _| Ok(make_tag(10, "urgent")));
+        let mut ctx = CommandContext::new(&mock, true, Some(1));
         let result = run(
             TagsAction::Create {
                 name: "urgent".to_string(),
             },
-            true,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -163,14 +138,13 @@ mod tests {
         mock.expect_update_tag()
             .withf(|wid, tid, _| *wid == WorkspaceId(1) && *tid == TagId(5))
             .returning(|_, _, _| Ok(make_tag(5, "renamed")));
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             TagsAction::Update {
                 id: 5,
                 name: "renamed".to_string(),
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -181,14 +155,13 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_update_tag()
             .returning(|_, _, _| Ok(make_tag(5, "renamed")));
+        let mut ctx = CommandContext::new(&mock, true, Some(1));
         let result = run(
             TagsAction::Update {
                 id: 5,
                 name: "renamed".to_string(),
             },
-            true,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -199,7 +172,8 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_list_tags()
             .returning(|_| Ok(vec![make_tag(1, "urgent"), make_tag(2, "billing")]));
-        let result = run(TagsAction::List, true, Some(1), &mock).await;
+        let mut ctx = CommandContext::new(&mock, true, Some(1));
+        let result = run(TagsAction::List, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -223,8 +197,9 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result =
-            execute_with_base_url(TagsAction::List, false, Some(1), Some(&server.uri())).await;
+        let client = build_client(Some(&server.uri())).unwrap();
+        let mut ctx = CommandContext::new(&client, false, Some(1));
+        let result = run(TagsAction::List, &mut ctx).await;
         // SAFETY: test is single-threaded for env var access
         unsafe { std::env::remove_var("TOGGL_API_TOKEN") };
         assert!(result.is_ok());

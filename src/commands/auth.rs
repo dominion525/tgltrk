@@ -1,6 +1,6 @@
 use crate::api::client::{ApiClient, TogglClient};
 use crate::cli::AuthAction;
-use crate::commands::CacheHits;
+use crate::cache::CacheHits;
 use crate::constants::ENV_API_TOKEN;
 use crate::credentials::{self, CredentialStore, KeyringStore};
 use crate::error::{AppError, Result};

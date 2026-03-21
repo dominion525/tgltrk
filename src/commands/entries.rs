@@ -2,7 +2,7 @@ use chrono::{DateTime, Local, NaiveDateTime, Utc};
 
 use crate::api::client::{ApiClient, CreateTimeEntryParams, UpdateTimeEntryParams};
 use crate::cli::EntriesAction;
-use crate::commands::{CacheHits, build_client, resolve_workspace_id};
+use crate::commands::CommandContext;
 use crate::error::{AppError, Result};
 use crate::models::{ProjectId, TaskId, TimeEntryId, WorkspaceId};
 use crate::output;
@@ -91,34 +91,17 @@ async fn resolve_entry_workspace(
     Ok(entry.workspace_id)
 }
 
-pub async fn execute(action: EntriesAction, json: bool, workspace: Option<i64>) -> Result<()> {
-    execute_with_base_url(action, json, workspace, None).await
-}
-
-pub async fn execute_with_base_url(
+pub async fn run(
     action: EntriesAction,
-    json: bool,
-    workspace: Option<i64>,
-    base_url: Option<&str>,
+    ctx: &mut CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let client = build_client(base_url)?;
-    run(action, json, workspace, &client).await
-}
-
-async fn run(
-    action: EntriesAction,
-    json: bool,
-    workspace: Option<i64>,
-    client: &(impl ApiClient + ?Sized),
-) -> Result<()> {
-    let mut hits = CacheHits::new();
     match action {
         EntriesAction::List {
             since,
             until,
             count,
-        } => list(json, since, until, count, client, &hits).await,
-        EntriesAction::Get { id } => get(json, TimeEntryId(id), client, &hits).await,
+        } => list(since, until, count, ctx).await,
+        EntriesAction::Get { id } => get(TimeEntryId(id), ctx).await,
         EntriesAction::Create {
             description,
             project,
@@ -129,10 +112,10 @@ async fn run(
             stop,
             duration,
         } => {
-            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+            let wid = ctx.resolve_workspace_id().await?;
             create(
-                json, wid, description, project, task, tags, billable, start, stop, duration,
-                client, &hits,
+                wid, description, project, task, tags, billable, start, stop, duration,
+                ctx,
             )
             .await
         }
@@ -146,52 +129,47 @@ async fn run(
             stop,
             duration,
         } => {
-            let wid = resolve_entry_workspace(client, workspace, TimeEntryId(id)).await?;
+            let wid = resolve_entry_workspace(ctx.client, ctx.workspace, TimeEntryId(id)).await?;
             edit(
-                json, wid, TimeEntryId(id), description, project, tags, billable, start, stop,
-                duration, client, &hits,
+                wid, TimeEntryId(id), description, project, tags, billable, start, stop,
+                duration, ctx,
             )
             .await
         }
         EntriesAction::Delete { id } => {
-            let wid = resolve_entry_workspace(client, workspace, TimeEntryId(id)).await?;
-            delete(json, wid, TimeEntryId(id), client, &hits).await
+            let wid = resolve_entry_workspace(ctx.client, ctx.workspace, TimeEntryId(id)).await?;
+            delete(wid, TimeEntryId(id), ctx).await
         }
         EntriesAction::Continue { id } => {
-            continue_entry(json, TimeEntryId(id), client, &hits).await
+            continue_entry(TimeEntryId(id), ctx).await
         }
     }
 }
 
 async fn list(
-    json: bool,
     since: Option<String>,
     until: Option<String>,
     count: Option<usize>,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let mut entries = client.get_time_entries(since, until).await?;
+    let mut entries = ctx.client.get_time_entries(since, until).await?;
     entries.sort_by_key(|e| std::cmp::Reverse(e.start));
     if let Some(n) = count {
         entries.truncate(n);
     }
-    output::print_list(&mut std::io::stdout(), &entries, json, hits)
+    output::print_list(&mut std::io::stdout(), &entries, ctx.json, ctx.hits())
 }
 
 async fn get(
-    json: bool,
     id: TimeEntryId,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let entry = client.get_time_entry(id).await?;
-    output::print_result(&mut std::io::stdout(), &entry, json, hits)
+    let entry = ctx.client.get_time_entry(id).await?;
+    output::print_result(&mut std::io::stdout(), &entry, ctx.json, ctx.hits())
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn create(
-    json: bool,
     workspace_id: WorkspaceId,
     description: Option<String>,
     project: Option<i64>,
@@ -201,8 +179,7 @@ async fn create(
     start_str: String,
     stop_str: Option<String>,
     duration_str: Option<String>,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
     let start = parse_datetime(&start_str)?;
     let (stop, duration) = match (stop_str, duration_str) {
@@ -242,13 +219,12 @@ async fn create(
         stop,
         duration,
     };
-    let entry = client.create_time_entry(workspace_id, &params).await?;
-    output::print_success(&mut std::io::stdout(), &entry, json, "Entry created", hits)
+    let entry = ctx.client.create_time_entry(workspace_id, &params).await?;
+    output::print_success(&mut std::io::stdout(), &entry, ctx.json, "Entry created", ctx.hits())
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn edit(
-    json: bool,
     workspace_id: WorkspaceId,
     entry_id: TimeEntryId,
     description: Option<String>,
@@ -258,8 +234,7 @@ async fn edit(
     start_str: Option<String>,
     stop_str: Option<String>,
     duration_str: Option<String>,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
     if stop_str.is_some() && duration_str.is_some() {
         return Err(AppError::InvalidInput(
@@ -278,45 +253,43 @@ async fn edit(
         stop,
         duration,
     };
-    let entry = client
+    let entry = ctx
+        .client
         .update_time_entry(workspace_id, entry_id, &params)
         .await?;
-    output::print_success(&mut std::io::stdout(), &entry, json, "Entry updated", hits)
+    output::print_success(&mut std::io::stdout(), &entry, ctx.json, "Entry updated", ctx.hits())
 }
 
 async fn delete(
-    json: bool,
     workspace_id: WorkspaceId,
     entry_id: TimeEntryId,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    client.delete_time_entry(workspace_id, entry_id).await?;
+    ctx.client.delete_time_entry(workspace_id, entry_id).await?;
     output::print_deleted(
         &mut std::io::stdout(),
-        json,
+        ctx.json,
         &format!("Entry #{entry_id} deleted"),
-        hits,
+        ctx.hits(),
     )
 }
 
 async fn continue_entry(
-    json: bool,
     entry_id: TimeEntryId,
-    client: &(impl ApiClient + ?Sized),
-    hits: &CacheHits,
+    ctx: &CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
-    let source = client.get_time_entry(entry_id).await?;
+    let source = ctx.client.get_time_entry(entry_id).await?;
     let params = CreateTimeEntryParams::from(&source);
-    let entry = client
+    let entry = ctx
+        .client
         .create_time_entry(source.workspace_id, &params)
         .await?;
     output::print_success(
         &mut std::io::stdout(),
         &entry,
-        json,
+        ctx.json,
         "Timer continued",
-        hits,
+        ctx.hits(),
     )
 }
 
@@ -324,6 +297,7 @@ async fn continue_entry(
 mod tests {
     use super::*;
     use crate::api::client::MockApiClient;
+    use crate::commands::build_client;
     use crate::models::{TimeEntry, TimeEntryId};
     use chrono::Utc;
 
@@ -364,15 +338,14 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_get_time_entries()
             .returning(|_, _| Ok(vec![make_entry(1), make_entry(2), make_entry(3)]));
+        let mut ctx = CommandContext::new(&mock, false, None);
         let result = run(
             EntriesAction::List {
                 since: None,
                 until: None,
                 count: Some(2),
             },
-            false,
-            None,
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -386,7 +359,8 @@ mod tests {
             .returning(|_| Ok(make_entry(5)));
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_running_entry(6)));
-        let result = run(EntriesAction::Continue { id: 5 }, false, Some(1), &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
+        let result = run(EntriesAction::Continue { id: 5 }, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -395,15 +369,14 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_get_time_entries()
             .returning(|_, _| Ok(vec![make_entry(1), make_entry(2), make_entry(3)]));
+        let mut ctx = CommandContext::new(&mock, false, None);
         let result = run(
             EntriesAction::List {
                 since: None,
                 until: None,
                 count: None,
             },
-            false,
-            None,
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -415,15 +388,14 @@ mod tests {
         mock.expect_get_time_entries()
             .withf(|s, u| s.as_deref() == Some("2024-01-01") && u.as_deref() == Some("2024-01-31"))
             .returning(|_, _| Ok(vec![make_entry(1)]));
+        let mut ctx = CommandContext::new(&mock, false, None);
         let result = run(
             EntriesAction::List {
                 since: Some("2024-01-01".to_string()),
                 until: Some("2024-01-31".to_string()),
                 count: None,
             },
-            false,
-            None,
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -435,7 +407,8 @@ mod tests {
         mock.expect_get_time_entry()
             .withf(|id| *id == TimeEntryId(42))
             .returning(|_| Ok(make_entry(42)));
-        let result = run(EntriesAction::Get { id: 42 }, false, None, &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, None);
+        let result = run(EntriesAction::Get { id: 42 }, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -444,7 +417,8 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_get_time_entry()
             .returning(|_| Ok(make_entry(42)));
-        let result = run(EntriesAction::Get { id: 42 }, true, None, &mock).await;
+        let mut ctx = CommandContext::new(&mock, true, None);
+        let result = run(EntriesAction::Get { id: 42 }, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -454,6 +428,7 @@ mod tests {
         mock.expect_update_time_entry()
             .withf(|wid, eid, _| *wid == WorkspaceId(1) && *eid == TimeEntryId(10))
             .returning(|_, _, _| Ok(make_entry(10)));
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             EntriesAction::Edit {
                 id: 10,
@@ -465,9 +440,7 @@ mod tests {
                 stop: None,
                 duration: None,
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -478,6 +451,7 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_update_time_entry()
             .returning(|_, _, _| Ok(make_entry(10)));
+        let mut ctx = CommandContext::new(&mock, true, Some(1));
         let result = run(
             EntriesAction::Edit {
                 id: 10,
@@ -489,9 +463,7 @@ mod tests {
                 stop: None,
                 duration: None,
             },
-            true,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -503,7 +475,8 @@ mod tests {
         mock.expect_delete_time_entry()
             .withf(|wid, eid| *wid == WorkspaceId(1) && *eid == TimeEntryId(7))
             .returning(|_, _| Ok(()));
-        let result = run(EntriesAction::Delete { id: 7 }, false, Some(1), &mock).await;
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
+        let result = run(EntriesAction::Delete { id: 7 }, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -514,7 +487,8 @@ mod tests {
             .returning(|_| Ok(make_entry(5)));
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_running_entry(6)));
-        let result = run(EntriesAction::Continue { id: 5 }, true, Some(1), &mock).await;
+        let mut ctx = CommandContext::new(&mock, true, Some(1));
+        let result = run(EntriesAction::Continue { id: 5 }, &mut ctx).await;
         assert!(result.is_ok());
     }
 
@@ -541,15 +515,15 @@ mod tests {
             .mount(&server)
             .await;
 
-        let result = execute_with_base_url(
+        let client = build_client(Some(&server.uri())).unwrap();
+        let mut ctx = CommandContext::new(&client, false, Some(1));
+        let result = run(
             EntriesAction::List {
                 since: None,
                 until: None,
                 count: None,
             },
-            false,
-            Some(1),
-            Some(&server.uri()),
+            &mut ctx,
         )
         .await;
         // SAFETY: test is single-threaded for env var access
@@ -564,6 +538,7 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_entry(20)));
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             EntriesAction::Create {
                 description: Some("Test".to_string()),
@@ -575,9 +550,7 @@ mod tests {
                 stop: Some("2026-03-20T10:00:00Z".to_string()),
                 duration: None,
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -588,6 +561,7 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_create_time_entry()
             .returning(|_, _| Ok(make_entry(21)));
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             EntriesAction::Create {
                 description: None,
@@ -599,9 +573,7 @@ mod tests {
                 stop: None,
                 duration: Some("1h30m".to_string()),
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -610,6 +582,7 @@ mod tests {
     #[tokio::test]
     async fn create_entry_rejects_stop_and_duration() {
         let mock = MockApiClient::new();
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             EntriesAction::Create {
                 description: None,
@@ -621,9 +594,7 @@ mod tests {
                 stop: Some("2026-03-20T10:00:00Z".to_string()),
                 duration: Some("1h".to_string()),
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_err());
@@ -632,6 +603,7 @@ mod tests {
     #[tokio::test]
     async fn create_entry_rejects_stop_before_start() {
         let mock = MockApiClient::new();
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             EntriesAction::Create {
                 description: None,
@@ -643,9 +615,7 @@ mod tests {
                 stop: Some("2026-03-20T09:00:00Z".to_string()),
                 duration: None,
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_err());
@@ -656,6 +626,7 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_update_time_entry()
             .returning(|_, _, _| Ok(make_entry(10)));
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             EntriesAction::Edit {
                 id: 10,
@@ -667,9 +638,7 @@ mod tests {
                 stop: None,
                 duration: None,
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_ok());
@@ -678,6 +647,7 @@ mod tests {
     #[tokio::test]
     async fn edit_entry_rejects_stop_and_duration() {
         let mock = MockApiClient::new();
+        let mut ctx = CommandContext::new(&mock, false, Some(1));
         let result = run(
             EntriesAction::Edit {
                 id: 10,
@@ -689,9 +659,7 @@ mod tests {
                 stop: Some("2026-03-20T10:00:00Z".to_string()),
                 duration: Some("1h".to_string()),
             },
-            false,
-            Some(1),
-            &mock,
+            &mut ctx,
         )
         .await;
         assert!(result.is_err());

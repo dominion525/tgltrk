@@ -273,6 +273,28 @@ impl fmt::Display for CacheFileStatus {
 }
 
 // ---------------------------------------------------------------------------
+// CacheHits
+// ---------------------------------------------------------------------------
+
+/// Track which entities were served from cache during a single command invocation.
+#[derive(Default, Debug)]
+pub struct CacheHits(Vec<String>);
+
+impl CacheHits {
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    pub fn record(&mut self, entity: &str) {
+        self.0.push(entity.to_string());
+    }
+
+    pub fn entities(&self) -> &[String] {
+        &self.0
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 
