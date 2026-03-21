@@ -1,10 +1,13 @@
+use std::collections::HashMap;
+use std::io::Write;
+
 use chrono::{DateTime, Local, NaiveDateTime, Utc};
 
 use crate::api::client::{ApiClient, CreateTimeEntryParams, UpdateTimeEntryParams};
 use crate::cli::EntriesAction;
 use crate::commands::CommandContext;
 use crate::error::{AppError, Result};
-use crate::models::{ProjectId, TaskId, TimeEntryId, WorkspaceId};
+use crate::models::{ClientId, ProjectId, TaskId, TimeEntryId, WorkspaceId};
 use crate::output;
 
 fn parse_datetime(s: &str) -> Result<DateTime<Utc>> {
@@ -165,14 +168,76 @@ async fn list(
     since: Option<String>,
     until: Option<String>,
     count: Option<usize>,
-    ctx: &CommandContext<'_, impl ApiClient>,
+    ctx: &mut CommandContext<'_, impl ApiClient>,
 ) -> Result<()> {
     let mut entries = ctx.client.get_time_entries(since, until).await?;
     entries.sort_by_key(|e| std::cmp::Reverse(e.start));
     if let Some(n) = count {
         entries.truncate(n);
     }
-    output::print_list(&mut std::io::stdout(), &entries, ctx.json, ctx.hits())
+    if ctx.json {
+        return output::print_list(&mut std::io::stdout(), &entries, ctx.json, ctx.hits());
+    }
+
+    // Resolve project and client names for text output
+    let wids: Vec<WorkspaceId> = entries
+        .iter()
+        .map(|e| e.workspace_id)
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    let mut project_map: HashMap<ProjectId, (String, Option<ClientId>)> = HashMap::new();
+    let mut client_map: HashMap<ClientId, String> = HashMap::new();
+    for wid in &wids {
+        let key = format!("projects_{wid}");
+        let fut = ctx.client.list_projects(*wid);
+        if let Ok(projects) = ctx.cached_fetch(&key, fut).await {
+            for p in &projects {
+                project_map.insert(p.id, (p.name.clone(), p.client_id));
+            }
+        }
+        let key = format!("clients_{wid}");
+        let fut = ctx.client.list_clients(*wid);
+        if let Ok(clients) = ctx.cached_fetch(&key, fut).await {
+            for c in &clients {
+                client_map.insert(c.id, c.name.clone());
+            }
+        }
+    }
+
+    let w = &mut std::io::stdout();
+    output::write_cache_hits_text(w, ctx.hits())?;
+    for e in &entries {
+        let desc = e.description.as_deref().unwrap_or("(no description)");
+        let status = if e.is_running() { " [running]" } else { "" };
+        let project_info = e
+            .project_id
+            .and_then(|pid| project_map.get(&pid))
+            .map(|(name, cid): &(String, Option<ClientId>)| {
+                let client_name = cid
+                    .and_then(|c| client_map.get(&c))
+                    .map(|n| format!(" [{n}]"))
+                    .unwrap_or_default();
+                format!(" ({name}{client_name})")
+            })
+            .unwrap_or_default();
+        let tags = if e.tags.is_empty() {
+            String::new()
+        } else {
+            format!(" [{}]", e.tags.join(", "))
+        };
+        writeln!(
+            w,
+            "#{} {} {}{}{}{tags}",
+            e.id,
+            desc,
+            e.display_duration(),
+            status,
+            project_info,
+        )?;
+    }
+    Ok(())
 }
 
 async fn get(id: TimeEntryId, ctx: &CommandContext<'_, impl ApiClient>) -> Result<()> {
@@ -357,11 +422,17 @@ mod tests {
         }
     }
 
+    fn stub_project_client_list(mock: &mut MockApiClient) {
+        mock.expect_list_projects().returning(|_| Ok(vec![]));
+        mock.expect_list_clients().returning(|_| Ok(vec![]));
+    }
+
     #[tokio::test]
     async fn list_entries_with_count() {
         let mut mock = MockApiClient::new();
         mock.expect_get_time_entries()
             .returning(|_, _| Ok(vec![make_entry(1), make_entry(2), make_entry(3)]));
+        stub_project_client_list(&mut mock);
         let mut ctx = CommandContext::new(&mock, false, None);
         let result = run(
             EntriesAction::List {
@@ -393,6 +464,7 @@ mod tests {
         let mut mock = MockApiClient::new();
         mock.expect_get_time_entries()
             .returning(|_, _| Ok(vec![make_entry(1), make_entry(2), make_entry(3)]));
+        stub_project_client_list(&mut mock);
         let mut ctx = CommandContext::new(&mock, false, None);
         let result = run(
             EntriesAction::List {
@@ -412,6 +484,7 @@ mod tests {
         mock.expect_get_time_entries()
             .withf(|s, u| s.as_deref() == Some("2024-01-01") && u.as_deref() == Some("2024-01-31"))
             .returning(|_, _| Ok(vec![make_entry(1)]));
+        stub_project_client_list(&mut mock);
         let mut ctx = CommandContext::new(&mock, false, None);
         let result = run(
             EntriesAction::List {
