@@ -4,7 +4,7 @@ use crate::api::client::{ApiClient, CreateTimeEntryParams};
 use crate::cli::TimerAction;
 use crate::commands::{CacheHits, build_client, resolve_workspace_id};
 use crate::error::{AppError, Result};
-use crate::models::{TaskId, WorkspaceId};
+use crate::models::{ProjectId, TaskId, WorkspaceId};
 use crate::output;
 
 pub async fn execute(action: TimerAction, json: bool, workspace: Option<i64>) -> Result<()> {
@@ -83,7 +83,7 @@ async fn start(
 ) -> Result<()> {
     let params = CreateTimeEntryParams {
         description,
-        project_id: project,
+        project_id: project.map(ProjectId),
         task_id: task,
         tags: tags.unwrap_or_default(),
         billable,

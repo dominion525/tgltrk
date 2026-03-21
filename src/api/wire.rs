@@ -55,7 +55,7 @@ impl From<WireTimeEntry> for TimeEntry {
             start: w.start,
             stop: w.stop,
             duration: w.duration,
-            project_id: w.project_id,
+            project_id: w.project_id.map(ProjectId),
             task_id: w.task_id.map(TaskId),
             tags: w.tags.unwrap_or_default(),
             billable: w.billable,

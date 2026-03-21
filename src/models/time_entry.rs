@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-use super::WorkspaceId;
+use super::{ProjectId, WorkspaceId};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TimeEntryId(pub i64);
@@ -24,7 +24,7 @@ pub struct TimeEntry {
     pub start: DateTime<Utc>,
     pub stop: Option<DateTime<Utc>>,
     pub duration: i64,
-    pub project_id: Option<i64>,
+    pub project_id: Option<ProjectId>,
     pub task_id: Option<TaskId>,
     pub tags: Vec<String>,
     pub billable: bool,

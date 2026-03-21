@@ -25,7 +25,7 @@ use mockall::automock;
 
 pub struct CreateTimeEntryParams {
     pub description: Option<String>,
-    pub project_id: Option<i64>,
+    pub project_id: Option<ProjectId>,
     pub task_id: Option<TaskId>,
     pub tags: Vec<String>,
     pub billable: bool,
@@ -51,7 +51,7 @@ impl From<&TimeEntry> for CreateTimeEntryParams {
 
 pub struct UpdateTimeEntryParams {
     pub description: Option<String>,
-    pub project_id: Option<i64>,
+    pub project_id: Option<ProjectId>,
     pub tags: Option<Vec<String>>,
     pub billable: Option<bool>,
     pub start: Option<DateTime<Utc>>,
@@ -293,7 +293,7 @@ impl ApiClient for TogglClient {
         let body = CreateTimeEntryRequest {
             workspace_id,
             description: params.description.clone(),
-            project_id: params.project_id,
+            project_id: params.project_id.map(|p| p.0),
             task_id: params.task_id,
             tags: params.tags.clone(),
             billable: params.billable,
@@ -318,7 +318,7 @@ impl ApiClient for TogglClient {
         );
         let body = UpdateTimeEntryRequest {
             description: params.description.clone(),
-            project_id: params.project_id,
+            project_id: params.project_id.map(|p| p.0),
             tags: params.tags.clone(),
             billable: params.billable,
             start: params.start,
@@ -960,7 +960,7 @@ mod tests {
             start: now,
             stop: Some(now),
             duration: 3600,
-            project_id: Some(10),
+            project_id: Some(ProjectId(10)),
             task_id: Some(TaskId(20)),
             tags: vec!["a".to_string(), "b".to_string()],
             billable: true,

@@ -4,7 +4,7 @@ use crate::api::client::{ApiClient, CreateTimeEntryParams, UpdateTimeEntryParams
 use crate::cli::EntriesAction;
 use crate::commands::{CacheHits, build_client, resolve_workspace_id};
 use crate::error::{AppError, Result};
-use crate::models::{TaskId, TimeEntryId, WorkspaceId};
+use crate::models::{ProjectId, TaskId, TimeEntryId, WorkspaceId};
 use crate::output;
 
 fn parse_datetime(s: &str) -> Result<DateTime<Utc>> {
@@ -234,7 +234,7 @@ async fn create(
     };
     let params = CreateTimeEntryParams {
         description,
-        project_id: project,
+        project_id: project.map(ProjectId),
         task_id: task.map(TaskId),
         tags: tags.unwrap_or_default(),
         billable,
@@ -271,7 +271,7 @@ async fn edit(
     let duration = duration_str.map(|s| parse_duration_str(&s)).transpose()?;
     let params = UpdateTimeEntryParams {
         description,
-        project_id: project,
+        project_id: project.map(ProjectId),
         tags,
         billable,
         start,
