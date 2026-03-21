@@ -143,6 +143,7 @@ impl FileCache {
     pub fn set<T: Serialize>(&self, key: &str, value: &T) -> Result<(), CacheError> {
         let path = cache_file_path(&self.cache_dir, key)?;
 
+        #[cfg(unix)]
         let dir_existed = self.cache_dir.exists();
         std::fs::create_dir_all(&self.cache_dir).map_err(|e| CacheError::Io {
             op: "create_dir",
