@@ -26,7 +26,7 @@ pub async fn run_cli(cli: Cli) -> error::Result<()> {
     let workspace = cli.workspace;
 
     match command {
-        Command::Auth { action } => commands::auth::execute(action).await,
+        Command::Auth { action } => commands::auth::execute(action, json).await,
         Command::Me => commands::me::execute(json, workspace).await,
         Command::Timer { action } => commands::timer::execute(action, json, workspace).await,
         Command::Entries { action } => commands::entries::execute(action, json, workspace).await,
@@ -35,8 +35,8 @@ pub async fn run_cli(cli: Cli) -> error::Result<()> {
         Command::Clients { action } => commands::clients::execute(action, json, workspace).await,
         Command::Workspaces { action } => commands::workspaces::execute(action, json).await,
         Command::Cache { action } => match action {
-            CacheAction::Clear => commands::cache_cmd::clear().await,
-            CacheAction::Status => commands::cache_cmd::status().await,
+            CacheAction::Clear => commands::cache_cmd::clear(json).await,
+            CacheAction::Status => commands::cache_cmd::status(json).await,
         },
     }
 }
@@ -53,7 +53,7 @@ async fn main() {
 /// Mutex to serialize tests that modify environment variables (e.g. TOGGL_API_TOKEN).
 /// Without this, parallel test threads race on set_var/remove_var.
 #[cfg(test)]
-pub(crate) static ENV_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+pub(crate) static ENV_MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 #[cfg(test)]
 mod tests {
