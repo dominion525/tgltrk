@@ -79,6 +79,18 @@ fn parse_duration_str(s: &str) -> Result<i64> {
     Ok(total)
 }
 
+async fn resolve_entry_workspace(
+    client: &(impl ApiClient + ?Sized),
+    workspace: Option<i64>,
+    entry_id: TimeEntryId,
+) -> Result<WorkspaceId> {
+    if let Some(id) = workspace {
+        return Ok(WorkspaceId(id));
+    }
+    let entry = client.get_time_entry(entry_id).await?;
+    Ok(entry.workspace_id)
+}
+
 pub async fn execute(action: EntriesAction, json: bool, workspace: Option<i64>) -> Result<()> {
     execute_with_base_url(action, json, workspace, None).await
 }
@@ -134,7 +146,7 @@ async fn run(
             stop,
             duration,
         } => {
-            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+            let wid = resolve_entry_workspace(client, workspace, TimeEntryId(id)).await?;
             edit(
                 json, wid, TimeEntryId(id), description, project, tags, billable, start, stop,
                 duration, client, &hits,
@@ -142,7 +154,7 @@ async fn run(
             .await
         }
         EntriesAction::Delete { id } => {
-            let wid = resolve_workspace_id(client, workspace, &mut hits).await?;
+            let wid = resolve_entry_workspace(client, workspace, TimeEntryId(id)).await?;
             delete(json, wid, TimeEntryId(id), client, &hits).await
         }
         EntriesAction::Continue { id } => {
