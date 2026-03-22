@@ -114,4 +114,28 @@ mod tests {
         cache.set("tags", &vec!["t1"]).unwrap();
         assert!(status_inner(&cache, false).is_ok());
     }
+
+    #[test]
+    fn status_inner_json_empty() {
+        let tmp = TempDir::new().unwrap();
+        let cache = make_cache(&tmp);
+        assert!(status_inner(&cache, true).is_ok());
+    }
+
+    #[test]
+    fn status_inner_json_with_entries() {
+        let tmp = TempDir::new().unwrap();
+        let cache = make_cache(&tmp);
+        cache.set("projects", &vec!["p1"]).unwrap();
+        cache.set("tags", &vec!["t1"]).unwrap();
+        assert!(status_inner(&cache, true).is_ok());
+    }
+
+    #[test]
+    fn clear_inner_json() {
+        let tmp = TempDir::new().unwrap();
+        let cache = make_cache(&tmp);
+        cache.set("projects", &vec!["p1"]).unwrap();
+        assert!(clear_inner(&cache, true).is_ok());
+    }
 }

@@ -63,12 +63,17 @@ async fn main() {
 #[cfg(test)]
 pub(crate) static ENV_MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
+/// Mutex to serialize tests that operate on the shared system cache directory.
+#[cfg(test)]
+static CACHE_MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[tokio::test]
     async fn run_cli_cache_status_succeeds() {
+        let _guard = CACHE_MUTEX.lock().await;
         let cli = Cli {
             command: Some(Command::Cache {
                 action: CacheAction::Status,
@@ -83,6 +88,7 @@ mod tests {
 
     #[tokio::test]
     async fn run_cli_cache_clear_succeeds() {
+        let _guard = CACHE_MUTEX.lock().await;
         let cli = Cli {
             command: Some(Command::Cache {
                 action: CacheAction::Clear,
@@ -102,6 +108,48 @@ mod tests {
             json: false,
             workspace: None,
             help_skill: true,
+        };
+        let result = run_cli(cli).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn run_cli_no_command_returns_error() {
+        let cli = Cli {
+            command: None,
+            json: false,
+            workspace: None,
+            help_skill: false,
+        };
+        let result = run_cli(cli).await;
+        assert!(result.is_err());
+    }
+
+    #[tokio::test]
+    async fn run_cli_cache_status_json() {
+        let _guard = CACHE_MUTEX.lock().await;
+        let cli = Cli {
+            command: Some(Command::Cache {
+                action: CacheAction::Status,
+            }),
+            json: true,
+            workspace: None,
+            help_skill: false,
+        };
+        let result = run_cli(cli).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn run_cli_cache_clear_json() {
+        let _guard = CACHE_MUTEX.lock().await;
+        let cli = Cli {
+            command: Some(Command::Cache {
+                action: CacheAction::Clear,
+            }),
+            json: true,
+            workspace: None,
+            help_skill: false,
         };
         let result = run_cli(cli).await;
         assert!(result.is_ok());
