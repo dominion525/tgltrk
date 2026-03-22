@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::io::Write;
 
 use chrono::{DateTime, Local, NaiveDateTime, Utc};
+use unicode_width::{UnicodeWidthChar, UnicodeWidthStr};
 
 use crate::api::client::{ApiClient, CreateTimeEntryParams, UpdateTimeEntryParams};
 use crate::cli::EntriesAction;
@@ -81,6 +82,32 @@ fn parse_duration_str(s: &str) -> Result<i64> {
         )));
     }
     Ok(total)
+}
+
+fn display_width(s: &str) -> usize {
+    s.width()
+}
+
+/// Truncate a string to fit within `max_width` display columns.
+/// Returns the (possibly truncated) string and its actual display width.
+fn fit_width(s: &str, max_width: usize) -> (String, usize) {
+    let w = s.width();
+    if w <= max_width {
+        return (s.to_string(), w);
+    }
+    let mut width = 0;
+    let mut result = String::new();
+    for ch in s.chars() {
+        let cw = ch.width().unwrap_or(0);
+        if width + cw > max_width.saturating_sub(1) {
+            result.push('…');
+            width += 1;
+            return (result, width);
+        }
+        result.push(ch);
+        width += cw;
+    }
+    (result, width)
 }
 
 async fn resolve_entry_workspace(
@@ -206,10 +233,34 @@ async fn list(
         }
     }
 
+    // Calculate dynamic column widths
+    const DESC_MAX_WIDTH: usize = 40; // 日本語20文字相当
+
+    let id_width = entries
+        .iter()
+        .map(|e| e.id.to_string().len())
+        .max()
+        .unwrap_or(0);
+
+    let desc_width = entries
+        .iter()
+        .map(|e| {
+            let desc = e.description.as_deref().unwrap_or("(no description)");
+            display_width(desc).min(DESC_MAX_WIDTH)
+        })
+        .max()
+        .unwrap_or(0);
+
     let w = &mut std::io::stdout();
     output::write_cache_hits_text(w, ctx.hits())?;
     for e in &entries {
-        let desc = e.description.as_deref().unwrap_or("(no description)");
+        let desc_raw = e.description.as_deref().unwrap_or("(no description)");
+        let (desc, desc_actual_width) = fit_width(desc_raw, desc_width);
+        let desc_pad = " ".repeat(desc_width - desc_actual_width);
+
+        let id_str = e.id.to_string();
+        let id_pad = " ".repeat(id_width - id_str.len());
+
         let status = if e.is_running() { " [running]" } else { "" };
         let local_start = e.start.with_timezone(&Local);
         let date = local_start.format("%Y-%m-%d");
@@ -236,13 +287,8 @@ async fn list(
         };
         writeln!(
             w,
-            "#{} {} {} {start_time}-{stop_time} {}{}{}{tags}",
-            e.id,
-            desc,
-            date,
+            "#{id_str}{id_pad} {desc}{desc_pad} {date} {start_time}-{stop_time} {}{status}{project_info}{tags}",
             e.display_duration(),
-            status,
-            project_info,
         )?;
     }
     Ok(())
@@ -845,5 +891,70 @@ mod tests {
         assert_eq!(super::parse_duration_str("90").unwrap(), 90);
         // "1h30" has trailing number without unit
         assert!(super::parse_duration_str("1h30").is_err());
+    }
+
+    // --- display_width / fit_width tests ---
+
+    #[test]
+    fn display_width_ascii() {
+        assert_eq!(super::display_width("hello"), 5);
+    }
+
+    #[test]
+    fn display_width_japanese() {
+        // Each CJK character is 2 columns
+        assert_eq!(super::display_width("実装"), 4);
+    }
+
+    #[test]
+    fn display_width_mixed() {
+        // "tgltrk実装" = 6 + 2*2 = 10
+        assert_eq!(super::display_width("tgltrk実装"), 10);
+    }
+
+    #[test]
+    fn fit_width_no_truncation() {
+        let (s, w) = super::fit_width("hello", 10);
+        assert_eq!(s, "hello");
+        assert_eq!(w, 5);
+    }
+
+    #[test]
+    fn fit_width_exact_fit() {
+        let (s, w) = super::fit_width("hello", 5);
+        assert_eq!(s, "hello");
+        assert_eq!(w, 5);
+    }
+
+    #[test]
+    fn fit_width_truncates_ascii() {
+        let (s, w) = super::fit_width("hello world", 6);
+        assert_eq!(s, "hello…");
+        assert_eq!(w, 6);
+    }
+
+    #[test]
+    fn fit_width_truncates_japanese() {
+        // "あいうえお" = 10 columns, truncate to 7
+        let (s, w) = super::fit_width("あいうえお", 7);
+        assert_eq!(s, "あいう…");
+        assert_eq!(w, 7);
+    }
+
+    #[test]
+    fn fit_width_truncates_mixed() {
+        // "abc日本語def" = 3 + 6 + 3 = 12 columns, truncate to 8
+        let (s, w) = super::fit_width("abc日本語def", 8);
+        assert_eq!(s, "abc日本…");
+        assert_eq!(w, 8);
+    }
+
+    #[test]
+    fn fit_width_cjk_boundary() {
+        // "ab日本" = 2 + 4 = 6 columns, truncate to 5
+        // Can't fit "日" (2 cols) + "…" (1 col) = would be 5, but "ab" is 2 + "日" is 2 = 4, + "…" = 5
+        let (s, w) = super::fit_width("ab日本", 5);
+        assert_eq!(s, "ab日…");
+        assert_eq!(w, 5);
     }
 }
