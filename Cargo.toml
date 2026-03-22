@@ -1,6 +1,6 @@
 [package]
 name = "tgltrk"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 rust-version = "1.85.0"
 description = "Unofficial Toggl Track CLI — manage timers, entries, projects, clients, and tags from the command line"
