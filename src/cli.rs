@@ -12,7 +12,7 @@ fn parse_date(s: &str) -> Result<String, String> {
     name = "tgltrk",
     about = "Toggl Track CLI",
     version,
-    after_help = "AI agents: run `tgltrk --help-skill` for structured usage instructions."
+    after_help = "AI agents: run `tgltrk --skill` to see how to install the tgltrk skill."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -26,9 +26,9 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub workspace: Option<i64>,
 
-    /// Print SKILL.md for AI agent integration and exit
-    #[arg(long = "help-skill", visible_aliases = ["export-skill", "skill"])]
-    pub help_skill: bool,
+    /// Print install instructions for the tgltrk skill and exit
+    #[arg(long)]
+    pub skill: bool,
 }
 
 #[derive(Subcommand)]

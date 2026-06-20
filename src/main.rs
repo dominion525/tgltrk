@@ -12,10 +12,20 @@ use clap::Parser;
 use cli::{CacheAction, Cli, Command};
 use colored::Colorize;
 
+const SKILL_INSTALL_INSTRUCTIONS: &str = "\
+Install the tgltrk skill via the dominion525/agent-skills Plugin Marketplace:
+
+  /plugin marketplace add dominion525/agent-skills
+  /plugin install tgltrk@dominion525-skills
+
+Vercel skills CLI:
+
+  npx skills add dominion525/agent-skills --skill tgltrk -a claude-code
+";
+
 pub async fn run_cli(cli: Cli) -> error::Result<()> {
-    if cli.help_skill {
-        let skill = include_str!("../SKILL.md").replace("{{VERSION}}", env!("CARGO_PKG_VERSION"));
-        print!("{skill}");
+    if cli.skill {
+        print!("{SKILL_INSTALL_INSTRUCTIONS}");
         return Ok(());
     }
 
@@ -80,7 +90,7 @@ mod tests {
             }),
             json: false,
             workspace: None,
-            help_skill: false,
+            skill: false,
         };
         let result = run_cli(cli).await;
         assert!(result.is_ok());
@@ -95,19 +105,19 @@ mod tests {
             }),
             json: false,
             workspace: None,
-            help_skill: false,
+            skill: false,
         };
         let result = run_cli(cli).await;
         assert!(result.is_ok());
     }
 
     #[tokio::test]
-    async fn run_cli_help_skill_outputs_skill_md() {
+    async fn run_cli_skill_outputs_install_instructions() {
         let cli = Cli {
             command: None,
             json: false,
             workspace: None,
-            help_skill: true,
+            skill: true,
         };
         let result = run_cli(cli).await;
         assert!(result.is_ok());
@@ -119,7 +129,7 @@ mod tests {
             command: None,
             json: false,
             workspace: None,
-            help_skill: false,
+            skill: false,
         };
         let result = run_cli(cli).await;
         assert!(result.is_err());
@@ -134,7 +144,7 @@ mod tests {
             }),
             json: true,
             workspace: None,
-            help_skill: false,
+            skill: false,
         };
         let result = run_cli(cli).await;
         assert!(result.is_ok());
@@ -149,7 +159,7 @@ mod tests {
             }),
             json: true,
             workspace: None,
-            help_skill: false,
+            skill: false,
         };
         let result = run_cli(cli).await;
         assert!(result.is_ok());
